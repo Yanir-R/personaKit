@@ -1,0 +1,1 @@
+{"type": "user", "sessionId": "h1", "cwd": "/work/acme", "entrypoint": "sdk-cli", "message": {"role": "user", "content": "Summarise this file for the pipeline."}}

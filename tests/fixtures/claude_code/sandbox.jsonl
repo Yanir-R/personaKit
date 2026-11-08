@@ -1,0 +1,1 @@
+{"type": "user", "sessionId": "x1", "cwd": "/tmp/personakit-extract-abc123", "entrypoint": "cli", "origin": {"kind": "human"}, "message": {"role": "user", "content": "Extract memories from these turns."}}

@@ -34,7 +34,7 @@ flowchart TB
 | Module | Responsibility | Depends on |
 |---|---|---|
 | `model` | Plain data types: `Turn`, `Memory`, `Evidence`, `State`, `Scope`. No I/O. | nothing |
-| `ingest/` | One adapter per source. Reads a session file, returns `Turn`s. Drops everything the owner did not write. | `model` |
+| `ingest/` | One adapter per source (`claude_code`, `codex`) plus `common` for the rules they share. Reads a session file, returns the owner's `Turn`s with a count of what was dropped and why. | `model` |
 | `llm` | One interface, `complete(prompt) -> str`, with a CLI-backed and an API-backed implementation. Spend cap lives here. | nothing |
 | `extract` | Builds the prompt from owner turns, parses and validates the reply into `Memory` + `Evidence`. | `model`, `llm` |
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
