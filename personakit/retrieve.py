@@ -4,8 +4,7 @@ This is the one read policy. The MCP server uses it, and so does anything else t
 to an assistant. Approved and unconfirmed memories are served (unconfirmed ones are labelled as
 such); restricted and archived memories are never served.
 
-Ranking is word overlap. It is a deliberately simple baseline, to be replaced and measured
-against embeddings later, not a finished retriever.
+Ranking is word overlap. It is a deliberately simple baseline, not a finished retriever.
 """
 
 from __future__ import annotations
