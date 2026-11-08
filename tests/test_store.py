@@ -98,6 +98,29 @@ class StoreTest(unittest.TestCase):
         self.assertTrue(self.store.session_is_current("claude-code", "s1", "abc"))
         self.assertFalse(self.store.session_is_current("claude-code", "s1", "def"))
 
+    def test_reads_are_counted_without_content(self):
+        self.store.log_read(2, 1)
+        self.store.log_read(0, 0)
+        self.assertEqual(self.store.read_stats(), {"reads": 2, "reads_with_results": 1})
+
+    def test_existing_database_is_upgraded_in_place(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        path = Path(tempfile.mkdtemp()) / "old.db"
+        old = sqlite3.connect(path)
+        old.executescript(MIGRATIONS[0])
+        old.execute("PRAGMA user_version = 1")
+        old.execute("INSERT INTO memories VALUES ('m_x','kept','c','global','approved','2026-01-01T00:00:00Z',NULL,NULL)")
+        old.execute("INSERT INTO evidence VALUES ('m_x','s',0,'q')")
+        old.commit()
+        old.close()
+        with Store(path) as upgraded:
+            self.assertEqual(upgraded.get("m_x").text, "kept")
+            self.assertEqual(upgraded.read_stats()["reads"], 0)
+            version = upgraded._conn.execute("PRAGMA user_version").fetchone()[0]
+        self.assertEqual(version, len(MIGRATIONS))
+
     def test_database_records_its_schema_version(self):
         version = self.store._conn.execute("PRAGMA user_version").fetchone()[0]
         self.assertEqual(version, len(MIGRATIONS))

@@ -12,7 +12,10 @@ license = { text = "Apache-2.0" }
 dependencies = []
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
+mcp = ["mcp>=1.2,<2"]
+
+[project.scripts]
+personakit = "personakit.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["personakit*"]

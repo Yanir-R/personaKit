@@ -141,10 +141,9 @@ def _validate(entry: object, by_index: dict[int, Turn]) -> tuple[Memory | None, 
     if not isinstance(text, str) or not text.strip():
         return None, "empty_text"
     text = text.strip()
-    if len(text) > MAX_MEMORY_CHARS:
-        return None, "too_long"
-    if _CREDENTIAL.search(text):
-        return None, "credential_shape"
+    problem = text_problem(text)
+    if problem:
+        return None, problem
 
     indexes = entry.get("turns")
     cited = [by_index[i] for i in indexes if isinstance(i, int) and i in by_index] if isinstance(indexes, list) else []
@@ -155,10 +154,23 @@ def _validate(entry: object, by_index: dict[int, Turn]) -> tuple[Memory | None, 
     if category not in CATEGORIES:
         category = "other"
     evidence = tuple(
-        Evidence(turn.session_id, turn.index, _quote(turn.text)) for turn in cited
+        Evidence(turn.session_id, turn.index, quote_of(turn.text)) for turn in cited
     )
     return Memory(text=text, category=category, evidence=evidence), None
 
 
-def _quote(text: str) -> str:
+def text_problem(text: str) -> str | None:
+    """Why a memory text cannot be stored, or None. Shared by extraction and assistant proposals."""
+    if not text.strip():
+        return "empty_text"
+    if len(text.strip()) > MAX_MEMORY_CHARS:
+        return "too_long"
+    if _CREDENTIAL.search(text):
+        return "credential_shape"
+    return None
+
+
+def quote_of(text: str) -> str:
+    """The stored form of a quote: verbatim, shortened if very long."""
     return text if len(text) <= MAX_QUOTE_CHARS else text[: MAX_QUOTE_CHARS - 1] + "…"
+

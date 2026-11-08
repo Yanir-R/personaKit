@@ -10,6 +10,22 @@ machine. There is no PersonaKit server and no account.
 > **Status: pre-release (0.1 in progress).** This repository is being built in public.
 > See [docs/ROADMAP.md](docs/ROADMAP.md) for what exists and what is planned.
 
+## Try it
+
+Requires Python 3.10+ and a signed-in `claude` or `codex` CLI for extraction.
+
+```sh
+pip install -e ".[mcp]"
+personakit sweep --cli claude --model <model-name> --max-calls 20   # read sessions, extract memories
+personakit review                                                    # optional: approve, restrict, hide, forget
+personakit list                                                      # see what is stored
+personakit stats                                                     # counts only, never memory text
+personakit serve                                                     # MCP server over stdio for your assistants
+```
+
+The model name is always yours to choose. Nothing leaves your machine except the turns you wrote,
+sent to the model you named. See [docs/PRIVACY.md](docs/PRIVACY.md).
+
 ## How it works
 
 ```mermaid

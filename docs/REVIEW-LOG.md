@@ -17,3 +17,11 @@ duplicated logic. Each entry records the result.
 | `personakit/extract.py` | 2026-11-08 | none; prompt is generic, rejects credential-shaped text | clean |
 | `personakit/sweep.py` | 2026-11-08 | none | clean |
 | `tests/test_llm.py`, `test_extract.py`, `test_sweep.py`, `helpers.py` | 2026-11-08 | none; hygiene check caught a key-shaped test string, now built at runtime | clean |
+| `personakit/retrieve.py` | 2026-11-08 | none | clean |
+| `personakit/review.py` | 2026-11-08 | none | clean |
+| `personakit/stats.py` | 2026-11-08 | none; counts only | clean |
+| `personakit/mcp_server.py` | 2026-11-08 | none; assistants get read and propose only. Verified with a real stdio MCP client against mcp 1.30 | clean |
+| `personakit/cli.py` | 2026-11-08 | none | clean |
+| `personakit/store.py` (changes) | 2026-11-08 | added `reads` table via migration 2; list order now insertion order | clean |
+| `personakit/extract.py` (changes) | 2026-11-08 | shared text checks moved into `text_problem` so extraction and assistant proposals use one rule | clean |
+| `tests/*` (new) | 2026-11-08 | invented data; a key-shaped string is assembled at runtime | clean |
