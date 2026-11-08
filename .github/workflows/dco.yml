@@ -1,0 +1,36 @@
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  signoff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check Signed-off-by on every commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -u
+          missing=0
+          for c in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            if ! git show -s --format=%B "$c" | grep -Eiq '^Signed-off-by: .+ <.+@.+>[[:space:]]*$'; then
+              echo "Missing sign-off: $(git show -s --format='%h %s' "$c")"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo
+            echo "Every commit needs a 'Signed-off-by: Name <email>' line (see CONTRIBUTING.md)."
+            echo "Fix with: git commit -s --amend   (or: git rebase --signoff main)"
+            exit 1
+          fi
+          echo "All commits are signed off."

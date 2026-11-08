@@ -12,6 +12,7 @@
 
 ## Checklist
 
+- [ ] Every commit is signed off (`git commit -s`), see CONTRIBUTING.md
 - [ ] No personal data, real paths, hostnames or credentials in code, tests, fixtures or docs
 - [ ] Test fixtures use invented data only
 - [ ] No duplicated logic; the change respects the module boundaries in `docs/ARCHITECTURE.md`
