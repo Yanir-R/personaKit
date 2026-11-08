@@ -1,0 +1,5 @@
+{"timestamp": "2026-01-06T10:00:00Z", "type": "session_meta", "payload": {"id": "c2", "cwd": "/work/acme", "source": {"subagent": {"thread_spawn": {}}}, "subagent_history_start_ordinal": 2}}
+{"timestamp": "2026-01-06T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Parent sentence replayed."}]}, "ordinal": 0}
+{"timestamp": "2026-01-06T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Another replayed sentence."}]}, "ordinal": 1}
+{"timestamp": "2026-01-06T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "The subagent's own user turn."}]}, "ordinal": 2}
+{"timestamp": "2026-01-06T10:00:00Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "No ordinal, cannot be placed."}]}}
