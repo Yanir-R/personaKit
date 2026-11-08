@@ -42,6 +42,13 @@ MIGRATIONS = [
         PRIMARY KEY (source, session_id)
     );
     """,
+    """
+    CREATE TABLE reads (
+        at        TEXT NOT NULL,
+        returned  INTEGER NOT NULL,
+        withheld  INTEGER NOT NULL
+    );
+    """,
 ]
 
 
@@ -133,7 +140,24 @@ class Store:
                 (source, session_id, fingerprint, self._now()),
             )
 
+    def log_read(self, returned: int, withheld: int) -> None:
+        """Record that an assistant asked for memories. Counts only, never the question."""
+        with self._conn:
+            self._conn.execute(
+                "INSERT INTO reads (at, returned, withheld) VALUES (?, ?, ?)",
+                (self._now(), returned, withheld),
+            )
+
     # -- reading --------------------------------------------------------------------
+
+    def read_stats(self) -> dict[str, int]:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS reads, COALESCE(SUM(returned > 0), 0) AS with_results FROM reads"
+        ).fetchone()
+        return {"reads": row["reads"], "reads_with_results": row["with_results"]}
+
+    def session_count(self) -> int:
+        return self._conn.execute("SELECT COUNT(*) FROM sessions_seen").fetchone()[0]
 
     def session_is_current(self, source: str, session_id: str, fingerprint: str) -> bool:
         row = self._conn.execute(
@@ -159,7 +183,7 @@ class Store:
             params.append(scope)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         rows = self._conn.execute(
-            "SELECT * FROM memories" + where + " ORDER BY created_at, id", params
+            "SELECT * FROM memories" + where + " ORDER BY created_at, rowid", params
         ).fetchall()
         return [self._load(row) for row in rows]
 
