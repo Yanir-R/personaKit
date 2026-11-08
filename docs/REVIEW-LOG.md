@@ -13,3 +13,7 @@ duplicated logic. Each entry records the result.
 | `personakit/store.py` | 2026-11-08 | none; only module importing sqlite3 | clean |
 | `tests/fixtures/**` | 2026-11-08 | invented sentences and `/work/acme` paths only | clean |
 | `tests/*.py` | 2026-11-08 | none | clean |
+| `personakit/llm.py` | 2026-11-08 | none; prompt travels on stdin, run in an empty marked sandbox. CLI argument lists not yet run against real CLIs | clean, needs live check |
+| `personakit/extract.py` | 2026-11-08 | none; prompt is generic, rejects credential-shaped text | clean |
+| `personakit/sweep.py` | 2026-11-08 | none | clean |
+| `tests/test_llm.py`, `test_extract.py`, `test_sweep.py`, `helpers.py` | 2026-11-08 | none; hygiene check caught a key-shaped test string, now built at runtime | clean |
