@@ -17,13 +17,31 @@ Thanks for helping. PersonaKit is pre-release; the design is in
 
 1. Open an issue for anything beyond a small fix, so the approach can be agreed.
 2. Fork, branch from `main`, and make the change.
-3. Fill in the pull request template.
-4. A maintainer reviews. Every file is read for personal data and duplication before it merges.
+3. Sign off every commit (see below).
+4. Fill in the pull request template.
+5. A maintainer reviews. Every file is read for personal data and duplication before it merges.
 
-## License
+## Sign your commits (DCO)
 
-By contributing you agree that your contribution is licensed under the Apache License 2.0, as in
-[LICENSE](LICENSE). No separate CLA is required.
+This project uses the [Developer Certificate of Origin](DCO) instead of a CLA. By signing off you
+certify that you wrote the contribution or have the right to submit it under Apache-2.0.
+
+```sh
+git commit -s -m "Describe the change"
+```
+
+This adds a `Signed-off-by: Your Name <you@example.com>` line, which must match your git
+`user.name` and `user.email`. To fix existing commits: `git rebase --signoff main`.
+A CI check blocks pull requests from outside contributors that contain unsigned commits.
+The repository owner, who holds the copyright, is exempt.
+
+Contributions stay under the license of the file they change (Apache-2.0). You keep your own
+copyright; the project does not ask for copyright assignment.
+
+## License and name
+
+Code is licensed under the Apache License 2.0, as in [LICENSE](LICENSE). The project name and
+branding are covered by [TRADEMARK.md](TRADEMARK.md).
 
 ## Conduct
 
