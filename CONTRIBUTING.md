@@ -32,7 +32,8 @@ git commit -s -m "Describe the change"
 
 This adds a `Signed-off-by: Your Name <you@example.com>` line, which must match your git
 `user.name` and `user.email`. To fix existing commits: `git rebase --signoff main`.
-A CI check blocks pull requests that contain unsigned commits.
+A CI check blocks pull requests from outside contributors that contain unsigned commits.
+The repository owner, who holds the copyright, is exempt.
 
 Contributions stay under the license of the file they change (Apache-2.0). You keep your own
 copyright; the project does not ask for copyright assignment.
