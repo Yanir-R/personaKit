@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   signoff:
+    # The repository owner holds the copyright and merges their own work, so the check
+    # applies to every other author. A skipped job counts as passing for branch protection.
+    if: github.event.pull_request.user.login != github.repository_owner
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
