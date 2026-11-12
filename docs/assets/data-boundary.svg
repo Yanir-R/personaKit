@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 348" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">What stays on your machine and what leaves it</title><desc id="d">Session files, assistant replies, tool output, pasted blocks, the store with your quotes as written, and restricted and hidden memories stay on your machine. Only the turns you wrote go to the model you chose. Your assistants receive approved and unconfirmed memories, up to two shortened and email-masked quotes each, and a count of withheld memories. There is no PersonaKit server.</desc>
+<defs><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b54b32"/></marker></defs>
+<rect width="760" height="348" fill="#f6f4ee"/>
+<rect x="20" y="20" width="318" height="276" rx="12" fill="#fffef9" stroke="#829074" stroke-width="1.3" stroke-dasharray="6 5"/>
+<text x="38" y="46" font-size="10" font-weight="700" fill="#536345" letter-spacing="1">STAYS ON YOUR MACHINE</text>
+<circle cx="44" cy="70" r="3.5" fill="#416345"/><text x="56" y="74" font-size="13" font-weight="650" fill="#292d27">Session files</text><text x="56" y="90" font-size="11" fill="#56614f">read in place, never copied out</text>
+<circle cx="44" cy="107" r="3.5" fill="#416345"/><text x="56" y="111" font-size="13" font-weight="650" fill="#292d27">Assistant replies and tool output</text><text x="56" y="127" font-size="11" fill="#56614f">dropped before extraction</text>
+<circle cx="44" cy="144" r="3.5" fill="#416345"/><text x="56" y="148" font-size="13" font-weight="650" fill="#292d27">Pasted blocks and injected context</text><text x="56" y="164" font-size="11" fill="#56614f">dropped before extraction</text>
+<circle cx="44" cy="181" r="3.5" fill="#416345"/><text x="56" y="185" font-size="13" font-weight="650" fill="#292d27">The store</text><text x="56" y="201" font-size="11" fill="#56614f">one SQLite file, quotes as you wrote them</text>
+<circle cx="44" cy="218" r="3.5" fill="#416345"/><text x="56" y="222" font-size="13" font-weight="650" fill="#292d27">Restricted and hidden memories</text><text x="56" y="238" font-size="11" fill="#56614f">never returned to an assistant</text>
+<circle cx="44" cy="255" r="3.5" fill="#416345"/><text x="56" y="259" font-size="13" font-weight="650" fill="#292d27">Questions assistants ask</text><text x="56" y="275" font-size="11" fill="#56614f">not recorded, only two counts per read</text>
+<rect x="452" y="20" width="288" height="100" rx="12" fill="#f8eee7" stroke="#b54b32" stroke-width="1.3"/>
+<text x="470" y="46" font-size="10" font-weight="700" fill="#963c26" letter-spacing="1">GOES TO THE MODEL YOU CHOSE</text>
+<circle cx="476" cy="66" r="3.5" fill="#b54b32"/><text x="488" y="70" font-size="13" font-weight="650" fill="#292d27">Only the turns you wrote</text><text x="488" y="86" font-size="11" fill="#56614f">through your own signed-in CLI, tools off</text>
+<rect x="452" y="140" width="288" height="156" rx="12" fill="#f8eee7" stroke="#b54b32" stroke-width="1.3"/>
+<text x="470" y="166" font-size="10" font-weight="700" fill="#963c26" letter-spacing="1">GOES TO YOUR ASSISTANTS</text>
+<circle cx="476" cy="186" r="3.5" fill="#b54b32"/><text x="488" y="190" font-size="13" font-weight="650" fill="#292d27">Approved and unconfirmed memories</text><text x="488" y="206" font-size="11" fill="#56614f">unconfirmed ones are labelled</text>
+<circle cx="476" cy="223" r="3.5" fill="#b54b32"/><text x="488" y="227" font-size="13" font-weight="650" fill="#292d27">Up to two quotes each</text><text x="488" y="243" font-size="11" fill="#56614f">shortened, email addresses masked</text>
+<circle cx="476" cy="260" r="3.5" fill="#b54b32"/><text x="488" y="264" font-size="13" font-weight="650" fill="#292d27">A count of withheld memories</text>
+<path d="M338 70H450" fill="none" stroke="#b54b32" stroke-width="1.5" marker-end="url(#r)"/><text x="394" y="62" text-anchor="middle" font-size="11" fill="#963c26">on sweep</text>
+<path d="M338 218H450" fill="none" stroke="#b54b32" stroke-width="1.5" marker-end="url(#r)"/><text x="394" y="210" text-anchor="middle" font-size="11" fill="#963c26">on each read</text>
+<rect x="20" y="308" width="720" height="28" rx="8" fill="#e9ecdf"/><text x="380" y="326" text-anchor="middle" font-size="12" font-weight="650" fill="#32462f">Nothing goes to PersonaKit: there is no PersonaKit server, no account and no telemetry.</text>
+</svg>
