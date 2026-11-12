@@ -7,8 +7,6 @@ from pathlib import Path
 from unittest import mock
 
 from personakit import cli, llm
-from personakit.model import Evidence, Memory
-from personakit.store import Store
 from tests.helpers import reply
 
 FIXTURES = Path(__file__).parent / "fixtures" / "claude_code"

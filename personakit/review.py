@@ -4,8 +4,8 @@ unconfirmed. Review exists so the owner can approve, restrict, hide or forget on
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from personakit.model import Decider, Memory, State
 from personakit.store import Store

@@ -11,6 +11,8 @@ Thanks for helping. PersonaKit is pre-release; the design is in
 - **Respect the module boundaries.** Only `store` touches SQLite, only `llm` talks to a model, only
   `ingest` reads session files. If you need to break a boundary, open an issue first.
 - **No duplicated logic.** Reuse an existing helper or move it to the right module.
+- **Checks must pass locally first.** `ruff check .` and `python -m coverage run -m unittest discover -s tests -t . && python -m coverage report`
+  (CI fails below the coverage floor in `pyproject.toml`).
 - **Small pull requests.** One change, with tests and a doc update if behavior or a privacy claim changes.
 
 ## Workflow

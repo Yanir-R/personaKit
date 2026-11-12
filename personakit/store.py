@@ -7,9 +7,9 @@ the types in personakit.model.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterable
 
 from personakit.model import Decider, Evidence, Memory, State
 
@@ -67,7 +67,7 @@ class Store:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "Store":
+    def __enter__(self) -> Store:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -176,7 +176,7 @@ class Store:
         clauses, params = [], []
         if states is not None:
             values = [s.value for s in states]
-            clauses.append("state IN (%s)" % ",".join("?" * len(values)))
+            clauses.append(f"state IN ({','.join('?' * len(values))})")
             params.extend(values)
         if scope is not None:
             clauses.append("scope = ?")

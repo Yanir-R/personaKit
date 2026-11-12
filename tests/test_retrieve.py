@@ -1,7 +1,7 @@
 import unittest
 
-from personakit.model import Evidence, Memory, State
 from personakit import retrieve
+from personakit.model import Evidence, Memory, State
 from personakit.retrieve import SERVED, STANDING_CONTEXT, search
 
 

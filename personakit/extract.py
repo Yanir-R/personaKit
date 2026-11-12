@@ -60,7 +60,7 @@ class ExtractionResult:
     memories: list[Memory] = field(default_factory=list)
     rejected: Counter = field(default_factory=Counter)
 
-    def merge(self, other: "ExtractionResult") -> None:
+    def merge(self, other: ExtractionResult) -> None:
         self.memories.extend(other.memories)
         self.rejected.update(other.rejected)
 
