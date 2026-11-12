@@ -10,8 +10,8 @@ Ranking is word overlap. It is a deliberately simple baseline, not a finished re
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from personakit.model import Memory, State
 
