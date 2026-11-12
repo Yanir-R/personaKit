@@ -185,7 +185,16 @@ class Store:
         rows = self._conn.execute(
             "SELECT * FROM memories" + where + " ORDER BY created_at, rowid", params
         ).fetchall()
-        return [self._load(row) for row in rows]
+        evidence: dict[str, list[Evidence]] = {}
+        for r in self._conn.execute(
+            "SELECT * FROM evidence WHERE memory_id IN (SELECT id FROM memories" + where + ")"
+            " ORDER BY memory_id, session_id, turn_index",
+            params,
+        ):
+            evidence.setdefault(r["memory_id"], []).append(
+                Evidence(r["session_id"], r["turn_index"], r["quote"])
+            )
+        return [self._build(row, tuple(evidence.get(row["id"], ()))) for row in rows]
 
     def counts(self) -> dict[str, int]:
         """Number of memories in each state. Counts only, never content."""
@@ -202,6 +211,10 @@ class Store:
                 (row["id"],),
             )
         )
+        return self._build(row, evidence)
+
+    @staticmethod
+    def _build(row: sqlite3.Row, evidence: tuple[Evidence, ...]) -> Memory:
         return Memory(
             id=row["id"],
             text=row["text"],

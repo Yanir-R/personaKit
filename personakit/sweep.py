@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import ModuleType
 
@@ -28,6 +28,11 @@ class SweepReport:
     memories_merged: int = 0
     rejected: Counter = field(default_factory=Counter)
     stopped: str | None = None
+
+    def as_dict(self) -> dict[str, object]:
+        data = asdict(self)
+        data["rejected"] = dict(sorted(self.rejected.items()))
+        return data
 
 
 def fingerprint(path: Path) -> str:

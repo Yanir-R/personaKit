@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -30,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--model", required=True, help="model name; never defaulted")
     run.add_argument("--max-calls", type=int, default=50, help="most model calls this run may make")
     run.add_argument("--max-sessions", type=int, default=None)
+    run.add_argument("--json", action="store_true", help="print one JSON object per source")
     run.add_argument("--root", type=Path, default=None, help="session directory (only valid with a single --source)")
 
     rev = sub.add_parser("review", help="approve, restrict, hide or forget memories")
@@ -37,8 +39,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     lst = sub.add_parser("list", help="list memories")
     lst.add_argument("--state", choices=[s.value for s in State], default=None)
+    lst.add_argument("--json", action="store_true", help="print a JSON array (no quotes)")
 
-    sub.add_parser("stats", help="counts only, never memory text")
+    stats_cmd = sub.add_parser("stats", help="counts only, never memory text")
+    stats_cmd.add_argument("--json", action="store_true", help="print a JSON object")
 
     forget = sub.add_parser("forget", help="permanently delete a memory and its quotes")
     forget.add_argument("memory_id")
@@ -62,10 +66,18 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
         review.run_review(store, limit=args.limit)
     elif args.command == "list":
         states = [State(args.state)] if args.state else None
-        for memory in store.list(states=states):
-            print(f"{memory.id}  {memory.state.value:<11} {memory.text}")
+        memories = store.list(states=states)
+        if args.json:
+            _print_json([m.as_dict() for m in memories])
+        else:
+            for memory in memories:
+                print(f"{memory.id}  {memory.state.value:<11} {memory.text}")
     elif args.command == "stats":
-        print(stats.format_stats(stats.collect(store)))
+        collected = stats.collect(store)
+        if args.json:
+            _print_json(collected)
+        else:
+            print(stats.format_stats(collected))
     elif args.command == "forget":
         if not store.forget(args.memory_id):
             print(f"No memory with id {args.memory_id}", file=sys.stderr)
@@ -74,6 +86,11 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
     elif args.command == "serve":
         mcp_server.serve(store)
     return 0
+
+
+def _print_json(data: object) -> None:
+    """One stable, sorted JSON document per call, so output is byte-for-byte repeatable."""
+    print(json.dumps(data, sort_keys=True, ensure_ascii=False))
 
 
 def _sweep(args: argparse.Namespace, store: Store) -> int:
@@ -85,12 +102,15 @@ def _sweep(args: argparse.Namespace, store: Store) -> int:
     exit_code = 0
     for source in sources:
         report = sweep.sweep(store, ADAPTERS[source], client, root=args.root, max_sessions=args.max_sessions)
-        print(
-            f"{source}: {report.sessions_found} sessions, {report.sessions_extracted} extracted, "
-            f"{report.sessions_unchanged} unchanged, {report.memories_new} new memories, "
-            f"{report.memories_merged} merged"
-            + (f", stopped: {report.stopped}" if report.stopped else "")
-        )
+        if args.json:
+            _print_json({"source": source, **report.as_dict()})
+        else:
+            print(
+                f"{source}: {report.sessions_found} sessions, {report.sessions_extracted} extracted, "
+                f"{report.sessions_unchanged} unchanged, {report.memories_new} new memories, "
+                f"{report.memories_merged} merged"
+                + (f", stopped: {report.stopped}" if report.stopped else "")
+            )
         if report.stopped and report.stopped.startswith("model_error"):
             exit_code = 1
             break

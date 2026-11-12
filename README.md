@@ -23,6 +23,8 @@ personakit stats                                                     # counts on
 personakit serve                                                     # MCP server over stdio for your assistants
 ```
 
+`sweep`, `list` and `stats` also take `--json` for stable, sorted machine-readable output.
+
 The model name is always yours to choose. Nothing leaves your machine except the turns you wrote,
 sent to the model you named. See [docs/PRIVACY.md](docs/PRIVACY.md).
 

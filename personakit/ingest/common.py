@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
+
+from personakit.model import Session, Turn
 
 # A turn that is mostly one long unbroken token is a pasted path, hash or key, not speech.
 # Shape only, never meaning, so the rule cannot be tuned to select interesting text.
@@ -64,3 +66,16 @@ def clean_text(text: str, envelopes: tuple[str, ...]) -> tuple[str | None, str |
     if is_paste(stripped):
         return None, "paste"
     return stripped, None
+
+
+def append_turn(session: Session, text: str, timestamp: str | None) -> None:
+    """Add one owner turn to a session, numbered in the order kept."""
+    session.turns.append(
+        Turn(
+            source=session.source,
+            session_id=session.session_id,
+            index=len(session.turns),
+            timestamp=timestamp,
+            text=text,
+        )
+    )

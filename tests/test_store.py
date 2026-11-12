@@ -48,6 +48,17 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(loaded.state, State.APPROVED)
         self.assertEqual(len(loaded.evidence), 2)
 
+    def test_list_loads_the_same_evidence_as_get_in_one_pass(self):
+        first, second = memory(turn=0), memory("You use Python.", "I write Python.", 1)
+        for item in (first, second, memory(turn=5, quote="Be blunt.")):
+            self.store.add(item)
+        listed = self.store.list()
+        self.assertEqual([m.evidence for m in listed], [self.store.get(m.id).evidence for m in listed])
+        self.assertEqual(len(listed[0].evidence), 2)
+        self.assertEqual([e.turn_index for e in listed[0].evidence], [0, 5])
+        only_python = self.store.list(states=[State.UNCONFIRMED], scope="global")
+        self.assertEqual(len(only_python), 2)
+
     def test_set_state_records_who_and_when(self):
         m = memory()
         self.store.add(m)

@@ -13,8 +13,8 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 
-from personakit.ingest.common import clean_text, in_sandbox, read_jsonl
-from personakit.model import Session, Turn
+from personakit.ingest.common import append_turn, clean_text, in_sandbox, read_jsonl
+from personakit.model import Session
 
 SOURCE = "codex-cli"
 
@@ -63,15 +63,7 @@ def read_session(path: Path) -> Session:
         if text is None:
             dropped[reason] += 1
             continue
-        session.turns.append(
-            Turn(
-                source=SOURCE,
-                session_id=session.session_id,
-                index=len(session.turns),
-                timestamp=record.get("timestamp"),
-                text=text,
-            )
-        )
+        append_turn(session, text, record.get("timestamp"))
     return session
 
 
