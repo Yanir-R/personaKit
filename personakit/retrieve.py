@@ -21,6 +21,10 @@ SERVED = (State.APPROVED, State.UNCONFIRMED)
 # assistant always gets the owner's confirmed standing preferences.
 STANDING_CONTEXT = 3
 
+# Evidence quotes are shortened and email-masked before an assistant sees them.
+SERVED_QUOTE_CHARS = 240
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+
 _WORD = re.compile(r"[a-z0-9']{3,}")
 _STOP = frozenset(
     "the and for you your with that this have from what how should about are was were not but "
@@ -58,3 +62,19 @@ def search(memories: Iterable[Memory], question: str, limit: int = 7) -> Result:
     if fill > 0:
         chosen.extend(sorted(standing, key=lambda m: (m.created_at or "", m.id))[:fill])
     return Result(chosen, withheld)
+
+
+def served_quote(quote: str) -> str:
+    """The form of a quote an assistant receives: emails masked, cut at a word boundary.
+
+    The store keeps the quote verbatim for the owner's own review; assistants get a shorter,
+    masked copy.
+    """
+    text = _EMAIL.sub("[email]", " ".join(quote.split()))
+    if len(text) <= SERVED_QUOTE_CHARS:
+        return text
+    cut = text[:SERVED_QUOTE_CHARS]
+    ends = [cut.rfind(mark) for mark in (". ", "? ", "! ")]
+    if max(ends) >= SERVED_QUOTE_CHARS // 2:
+        return cut[: max(ends) + 1]
+    return cut.rsplit(" ", 1)[0].rstrip(",;:") + "…"

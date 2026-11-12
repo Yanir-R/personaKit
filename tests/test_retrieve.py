@@ -1,6 +1,7 @@
 import unittest
 
 from personakit.model import Evidence, Memory, State
+from personakit import retrieve
 from personakit.retrieve import SERVED, STANDING_CONTEXT, search
 
 
@@ -45,6 +46,19 @@ class SearchTest(unittest.TestCase):
 
     def test_stop_words_alone_do_not_match(self):
         self.assertEqual(search([mem("You prefer the quiet.")], "what should the").memories, [])
+
+
+class ServedQuoteTest(unittest.TestCase):
+    def test_served_quotes_mask_emails_and_end_at_a_word_boundary(self):
+        self.assertEqual(retrieve.served_quote("write to me at someone@example.com please"),
+                         "write to me at [email] please")
+        long_quote = "word " * 100
+        served = retrieve.served_quote(long_quote)
+        self.assertLessEqual(len(served), retrieve.SERVED_QUOTE_CHARS + 1)
+        self.assertTrue(served.endswith("word…"))
+        first = "I like " + "very " * 25 + "direct feedback."
+        self.assertEqual(retrieve.served_quote(first + " " + "filler " * 60), first)
+        self.assertEqual(retrieve.served_quote("Short one."), "Short one.")
 
 
 if __name__ == "__main__":
