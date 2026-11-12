@@ -7,32 +7,12 @@ Install the optional dependency with: pip install "personakit[mcp]"
 
 from __future__ import annotations
 
-import re
-
 from personakit import extract, retrieve
 from personakit.model import Evidence, Memory, State
 from personakit.review import PROPOSED_BY_ASSISTANT
 from personakit.store import Store
 
 NOTE_UNCONFIRMED = "Unconfirmed: extracted from the owner's conversations but not yet reviewed by them."
-SERVED_QUOTE_CHARS = 240
-_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
-
-
-def served_quote(quote: str) -> str:
-    """The form of a quote an assistant receives: emails masked, cut at a word boundary.
-
-    The store keeps the quote verbatim for the owner's own review; assistants get a shorter,
-    masked copy.
-    """
-    text = _EMAIL.sub("[email]", " ".join(quote.split()))
-    if len(text) <= SERVED_QUOTE_CHARS:
-        return text
-    cut = text[:SERVED_QUOTE_CHARS]
-    ends = [cut.rfind(mark) for mark in (". ", "? ", "! ")]
-    if max(ends) >= SERVED_QUOTE_CHARS // 2:
-        return cut[: max(ends) + 1]
-    return cut.rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
 def read_memories(store: Store, question: str, limit: int = 7) -> dict:
@@ -47,7 +27,7 @@ def read_memories(store: Store, question: str, limit: int = 7) -> dict:
                 "text": m.text,
                 "category": m.category,
                 "confirmed": m.state == State.APPROVED,
-                "evidence": [served_quote(e.quote) for e in m.evidence[:2]],
+                "evidence": [retrieve.served_quote(e.quote) for e in m.evidence[:2]],
             }
             for m in result.memories
         ],

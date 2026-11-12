@@ -47,17 +47,6 @@ class ReadTest(unittest.TestCase):
         mixed = mcp_server.read_memories(self.store, "feedback and short answers")
         self.assertEqual(mixed["note"], mcp_server.NOTE_UNCONFIRMED)
 
-    def test_served_quotes_mask_emails_and_end_at_a_word_boundary(self):
-        self.assertEqual(mcp_server.served_quote("write to me at someone@example.com please"),
-                         "write to me at [email] please")
-        long_quote = "word " * 100
-        served = mcp_server.served_quote(long_quote)
-        self.assertLessEqual(len(served), mcp_server.SERVED_QUOTE_CHARS + 1)
-        self.assertTrue(served.endswith("word…"))
-        first = "I like " + "very " * 25 + "direct feedback."
-        self.assertEqual(mcp_server.served_quote(first + " " + "filler " * 60), first)
-        self.assertEqual(mcp_server.served_quote("Short one."), "Short one.")
-
     def test_restricted_text_never_appears_in_the_response(self):
         result = mcp_server.read_memories(self.store, "career change quit")
         self.assertNotIn("career", str(result))

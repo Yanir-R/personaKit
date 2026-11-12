@@ -38,10 +38,10 @@ flowchart TB
 | `llm` | One interface, `complete(prompt) -> str`, with a CLI-backed and an API-backed implementation. Spend cap lives here. | nothing |
 | `extract` | Builds the prompt from owner turns, validates the reply into `Memory` + `Evidence`, and counts what it rejects and why. | `model`, `llm` |
 | `sweep` | Runs ingest, extract and store over new sessions. Skips unchanged files, stops only on budget or model error, never because unreviewed memories are piling up. | `ingest`, `extract`, `llm`, `store` |
-| `retrieve` | The one read policy: approved and unconfirmed memories are served, restricted and archived never are. Word-overlap ranking, a baseline to be measured. | `model` |
+| `retrieve` | The one read policy: approved and unconfirmed memories are served, restricted and archived never are. It also shapes the evidence quotes an assistant receives (email addresses masked, cut at a word boundary). Word-overlap ranking, a baseline to be measured. | `model` |
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
 | `review` | Terminal UI over the store: approve, edit, restrict, remove. Optional by design. | `store` |
-| `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
+| `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 
