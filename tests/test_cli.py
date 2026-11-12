@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -57,6 +58,32 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(self.run_cli("forget", memory_id)[0], 0)
         self.assertEqual(self.run_cli("forget", memory_id)[0], 1)
+
+    def test_json_outputs_are_structured_and_repeatable(self):
+        root = self.tmp / "projects"
+        (root / "proj").mkdir(parents=True)
+        (root / "proj" / "one.jsonl").write_text((FIXTURES / "session.jsonl").read_text())
+        with mock.patch.dict(cli.CLIENTS, {"claude": FakeCli}):
+            _, swept, _ = self.run_cli(
+                "sweep", "--source", "claude-code", "--model", "m", "--root", str(root), "--json"
+            )
+        report = json.loads(swept)
+        self.assertEqual(report["source"], "claude-code")
+        self.assertEqual(report["sessions_extracted"], 1)
+        self.assertEqual(report["memories_new"], 1)
+        self.assertIsNone(report["stopped"])
+
+        _, listing, _ = self.run_cli("list", "--json")
+        (row,) = json.loads(listing)
+        self.assertEqual(row["state"], "unconfirmed")
+        self.assertEqual(row["text"], MEMORY["text"])
+        self.assertEqual(row["quotes"], 2)
+        self.assertNotIn("quote", {k for k in row if k != "quotes"})
+        self.assertEqual(self.run_cli("list", "--json")[1], listing)
+
+        _, stats_out, _ = self.run_cli("stats", "--json")
+        self.assertEqual(json.loads(stats_out)["memories_unconfirmed"], 1)
+        self.assertEqual(self.run_cli("stats", "--json")[1], stats_out)
 
     def test_model_is_required(self):
         with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):

@@ -81,6 +81,18 @@ class Memory:
         if not self.id:
             object.__setattr__(self, "id", memory_id(self.text))
 
+    def as_dict(self) -> dict[str, object]:
+        """Machine-readable summary. Quotes are left out: they stay in the owner's store."""
+        return {
+            "id": self.id,
+            "state": self.state.value,
+            "category": self.category,
+            "scope": self.scope,
+            "text": self.text,
+            "quotes": len(self.evidence),
+            "created_at": self.created_at,
+        }
+
 
 _WHITESPACE = re.compile(r"\s+")
 

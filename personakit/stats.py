@@ -9,8 +9,9 @@ from personakit.store import Store
 
 
 def collect(store: Store) -> dict[str, int]:
-    stats = {f"memories_{state}": n for state, n in store.counts().items()}
-    stats["memories_total"] = sum(store.counts().values())
+    counts = store.counts()
+    stats = {f"memories_{state}": n for state, n in counts.items()}
+    stats["memories_total"] = sum(counts.values())
     stats["sessions_extracted"] = store.session_count()
     stats.update(store.read_stats())
     return stats
