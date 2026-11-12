@@ -68,5 +68,5 @@ model, only `ingest` reads session files.** A second implementation of any of th
 
 ## Out of scope for 0.1
 
-Hosted service, accounts, sync, ChatGPT/Gemini/claude.ai import, embeddings, third-party name
-detection, autonomous curation. Each is planned as an optional module; see the roadmap.
+Hosted service, accounts, sync, ChatGPT/Gemini/claude.ai import and third-party name detection.
+See the roadmap for what is planned.
