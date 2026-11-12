@@ -54,6 +54,7 @@ personakit review                                                    # optional:
 personakit list                                                      # see what is stored
 personakit stats                                                     # counts only, never memory text
 personakit serve                                                     # MCP server over stdio for your assistants
+personakit forget <memory-id>                                        # delete a memory and its quotes for good
 ```
 
 `sweep`, `list` and `stats` also take `--json` for stable, sorted machine-readable output.
@@ -89,18 +90,13 @@ Your assistant gets two tools:
 
 ## How it works
 
-```mermaid
-flowchart LR
-  A[Claude Code / Codex sessions] --> B[ingest]
-  B -->|your own words only| C[extract]
-  C --> D[(local SQLite store)]
-  D --> E[review CLI, optional]
-  D --> F[MCP server]
-  F --> G[your assistants]
-```
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" width="760" alt="How PersonaKit works: session files are read on your machine, only the turns you wrote go to the model you chose, memories are stored in a local SQLite file, and the MCP server serves approved and unconfirmed memories to your assistants">
+</p>
 
 1. **Ingest** reads local session files. Only the turns you wrote leave the parsing step.
-2. **Extract** asks a model you already use (your own CLI login or API key) to propose memories.
+2. **Extract** asks a model you already use, through your own signed-in `claude` or `codex` CLI,
+   to propose memories. The CLI runs with its tools off, in an empty temporary directory.
 3. **Store** keeps each memory with its source quote, a state, and a scope.
 4. **Review** is optional. Memories you never review are served marked *unconfirmed*; you
    can approve, restrict, hide or forget any of them at any time.
@@ -115,6 +111,19 @@ A memory is always in one of four states:
 | `restricted` | Never |
 | `archived` | Never |
 
+## Limits in 0.1
+
+Stated plainly, so you know what you are installing:
+
+- **Extraction is a model's guess.** Review is how you correct it.
+- **Ranking is word overlap**, on whole words in Latin letters and digits. Questions and memories
+  in other scripts are not matched yet; approved memories are still returned as standing context.
+- **A decision cannot be changed, only undone by forgetting.** `review` shows unconfirmed memories;
+  there is no command yet to edit a memory's wording or move a decided memory to another state.
+- **A memory an assistant already received stays in that conversation.** Restricting it applies to
+  future reads.
+- **Paste and credential detection is by shape**, not by meaning. Look before you share a store.
+
 ## What works today
 
 | | Status |
@@ -126,6 +135,7 @@ A memory is always in one of four states:
 
 ## Documentation
 
+- [personakit.me/docs](https://personakit.me/docs/): guides, concepts, and the MCP tools reference.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the design, module by module.
 - [docs/PRIVACY.md](docs/PRIVACY.md): exactly what is sent where.
 - [docs/ROADMAP.md](docs/ROADMAP.md): what exists and what is planned.
