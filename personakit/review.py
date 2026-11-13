@@ -7,10 +7,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from personakit.model import Decider, Memory, State
+from personakit.model import PROPOSED_BY_ASSISTANT, Decider, Memory, State
 from personakit.store import Store
-
-PROPOSED_BY_ASSISTANT = "mcp-proposal"
 
 CHOICES = {"a": State.APPROVED, "r": State.RESTRICTED, "h": State.ARCHIVED}
 PROMPT = "  [a]pprove  [r]estrict  [h]ide  [f]orget  [s]kip  [q]uit > "

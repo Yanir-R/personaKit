@@ -38,8 +38,13 @@ class Result:
     withheld: int  # matching memories the owner restricted, counted but never shown
 
 
+def word_list(text: str) -> list[str]:
+    """Content words in the order written, repeats kept."""
+    return [w for w in _WORD.findall(text.lower()) if w not in _STOP]
+
+
 def words(text: str) -> set[str]:
-    return {w for w in _WORD.findall(text.lower()) if w not in _STOP}
+    return set(word_list(text))
 
 
 def search(memories: Iterable[Memory], question: str, limit: int = 7) -> Result:

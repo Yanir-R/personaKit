@@ -1,4 +1,4 @@
-# Architecture (v0.1 design)
+# Architecture (v0.2 design)
 
 PersonaKit is a small local pipeline with one database. Each stage has one job and talks to
 the next only through the store.
@@ -17,6 +17,8 @@ flowchart TB
     RV[review: CLI]
     MCP[mcp_server]
     SS[stats: local counts]
+    TD[tidy: twins + decay, on request]
+    DG[digest: last days, local]
   end
   CC --> IN
   CX --> IN
@@ -26,6 +28,8 @@ flowchart TB
   ST <--> RV
   ST --> MCP
   ST --> SS
+  ST <--> TD
+  ST --> DG
   MCP --> AS[Assistants]
 ```
 
@@ -42,6 +46,10 @@ flowchart TB
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
 | `review` | Terminal UI over the store: approve, restrict, hide, forget. Optional by design. | `store` |
 | `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
+| `twins` | Finds near-identical unconfirmed memories that rest on the same single session. Word-based, deliberately cautious (numbers, negation and word order must agree). Pure functions. | `model`, `retrieve` |
+| `decay` | Finds unconfirmed memories not seen again for a long time (90 days by default). Pure functions. | `model` |
+| `tidy` | Turns `twins` and `decay` into a plan (read-only), applies it only on request, and reverses single steps. | `twins`, `decay`, `store` |
+| `digest` | A summary of the last days: new, merged and archived memories, what awaits review, read counts. Prints memory text, never quotes, to your terminal only. | `store`, `decay` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 
@@ -51,7 +59,11 @@ model, only `ingest` reads session files.** A second implementation of any of th
 ## Data model
 
 - **Turn**: `(source, session_id, index, timestamp, text)`. Only owner-authored turns exist here.
-- **Memory**: `id, text, category, scope, state, created_at, decided_at, decided_by`.
+- **Memory**: `id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by`.
+  `last_seen_at` moves forward each time the same statement is extracted again.
+- **Merge record**: `duplicate_id, survivor_id, merged_at, undone_at, snapshot`. The snapshot holds
+  the merged-away memory so `undo` can bring it back exactly; it is emptied on undo and deleted
+  with the survivor on `forget`.
 - **Evidence**: `memory_id, session_id, turn_index, quote`. Every memory has at least one.
 - **State**: `unconfirmed` (default, served with a label) -> `approved` | `restricted` |
   `archived`. Nothing is ever hard-deleted without an explicit `forget` by the owner.
@@ -60,13 +72,22 @@ model, only `ingest` reads session files.** A second implementation of any of th
 
 1. A memory with no evidence is not stored.
 2. Unconfirmed memories are served, labelled as unconfirmed. Review is a quality tool, not a gate.
-3. The system never changes a memory's state or deletes a memory on its own. Extracting the same
-   statement again adds evidence to the existing memory and leaves your decision alone. Merging
-   near-duplicates and archiving stale items are planned for 0.2 and will be reversible.
+3. The system never deletes a memory, and never touches a memory you have decided on. Extracting
+   the same statement again adds evidence to the existing memory and leaves your decision alone.
+   Two things change unconfirmed memories, and only when you run `personakit tidy --apply`
+   (the default is a plan that changes nothing): folding same-session twins together, and
+   archiving memories not seen again for 90 days. Both are reversible with `personakit undo <id>`.
+   A memory that decay archived comes back by itself if the statement is extracted again.
 4. Only text the owner wrote is sent to a model.
 5. Statistics are counts, never content, and are local unless the owner chooses to share them.
 
-## Out of scope for 0.1
+## Out of scope for now
 
 Hosted service, accounts, sync, ChatGPT/Gemini/claude.ai import and third-party name detection.
 See the roadmap for what is planned.
+
+## Limits in 0.2
+
+Twin detection compares words, not meaning. It catches the same statement phrased almost the
+same way and misses paraphrases; it is built to miss rather than to merge wrongly. Decay looks
+only at how long ago a statement was last extracted, not at whether it is still true.

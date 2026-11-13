@@ -25,3 +25,6 @@ duplicated logic. Each entry records the result.
 | `personakit/store.py` (changes) | 2026-11-08 | added `reads` table via migration 2; list order now insertion order | clean |
 | `personakit/extract.py` (changes) | 2026-11-08 | shared text checks moved into `text_problem` so extraction and assistant proposals use one rule | clean |
 | `tests/*` (new) | 2026-11-08 | invented data; a key-shaped string is assembled at runtime | clean |
+| `personakit/twins.py`, `decay.py`, `tidy.py`, `digest.py` | 2026-11-13 | none; written for this repository, word-based only (no model call), thresholds chosen from invented examples; no ids or text from any real store | clean |
+| `personakit/store.py`, `model.py`, `retrieve.py`, `review.py`, `cli.py` (0.2 changes) | 2026-11-13 | migration 3 (`last_seen_at`, `merges`); merge snapshot is emptied on undo and deleted on forget; `PROPOSED_BY_ASSISTANT` moved to `model` | clean |
+| `tests/test_twins.py`, `test_decay.py`, `test_merge_store.py`, `test_tidy.py`, `test_cli.py` (changes) | 2026-11-13 | invented sentences only | clean |

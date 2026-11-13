@@ -16,3 +16,10 @@
 - **Statistics:** `personakit stats` prints counts to your terminal. It never includes memory text.
   Sharing the output is your choice.
 - **Deletion:** `personakit forget` removes a memory and its evidence from the store.
+- **Tidy and undo:** `personakit tidy` reads your store and, only with `--apply`, folds
+  near-identical memories together and archives stale ones. A merged memory is kept inside your
+  store, as a record that lets `personakit undo` restore it; the record is emptied on undo and
+  deleted when you `forget` the memory it was merged into (or the merged memory itself). Nothing
+  leaves your machine, and nothing here calls a model.
+- **Digest:** `personakit digest` prints memory ids and text (never evidence quotes) to your
+  terminal. Unlike `stats` it is not counts-only, so look before pasting it anywhere.
