@@ -138,6 +138,7 @@ Stated plainly, so you know what you are installing:
 - [personakit.me/docs](https://personakit.me/docs/): guides, concepts, and the MCP tools reference.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the design, module by module.
 - [docs/PRIVACY.md](docs/PRIVACY.md): exactly what is sent where.
+- [docs/PLUGINS.md](docs/PLUGINS.md): the extension point and what a plugin cannot do.
 - [docs/ROADMAP.md](docs/ROADMAP.md): what exists and what is planned.
 
 ## Contributing

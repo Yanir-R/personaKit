@@ -25,3 +25,4 @@ duplicated logic. Each entry records the result.
 | `personakit/store.py` (changes) | 2026-11-08 | added `reads` table via migration 2; list order now insertion order | clean |
 | `personakit/extract.py` (changes) | 2026-11-08 | shared text checks moved into `text_problem` so extraction and assistant proposals use one rule | clean |
 | `tests/*` (new) | 2026-11-08 | invented data; a key-shaped string is assembled at runtime | clean |
+| `personakit/plugins.py`, `docs/PLUGINS.md`, `tests/test_plugins.py`; `retrieve.py`, `mcp_server.py`, `cli.py` (changes) | 2026-11-14 | none; opt-in by name, scoring only, a policy test proves a plugin cannot widen what is served | clean |

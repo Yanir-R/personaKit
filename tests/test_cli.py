@@ -106,6 +106,12 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("Not logged in", out)
 
+    def test_naming_a_plugin_that_is_not_installed_fails_clearly(self):
+        with mock.patch.dict("os.environ", {"PERSONAKIT_PLUGINS": "not-installed"}):
+            code, _, err = self.run_cli("serve")
+        self.assertEqual(code, 2)
+        self.assertIn("not-installed", err)
+
     def test_db_defaults_to_environment_variable(self):
         with mock.patch.dict("os.environ", {"PERSONAKIT_DB": str(self.db)}):
             self.assertEqual(cli.default_db(), self.db)

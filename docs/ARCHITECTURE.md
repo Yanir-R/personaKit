@@ -42,6 +42,7 @@ flowchart TB
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
 | `review` | Terminal UI over the store: approve, restrict, hide, forget. Optional by design. | `store` |
 | `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
+| `plugins` | One extension point, `relevance`, loaded only when the owner names a plugin in `PERSONAKIT_PLUGINS`. A plugin scores; policy stays in `retrieve` and `store`. See [PLUGINS.md](PLUGINS.md). | `retrieve` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 

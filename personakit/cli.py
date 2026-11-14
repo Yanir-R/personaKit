@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from personakit import llm, mcp_server, review, stats, sweep
+from personakit import llm, mcp_server, plugins, review, stats, sweep
 from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
@@ -56,7 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     db = args.db or default_db()
     db.parent.mkdir(parents=True, exist_ok=True)
     with Store(db) as store:
-        return _dispatch(args, store)
+        try:
+            return _dispatch(args, store)
+        except plugins.PluginError as exc:
+            print(exc, file=sys.stderr)
+            return 2
 
 
 def _dispatch(args: argparse.Namespace, store: Store) -> int:
@@ -84,7 +88,7 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             return 1
         print("Forgotten.")
     elif args.command == "serve":
-        mcp_server.serve(store)
+        mcp_server.serve(store, plugins.load().relevance)
     return 0
 
 
