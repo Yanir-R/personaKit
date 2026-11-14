@@ -55,11 +55,12 @@ personakit list                                                      # see what 
 personakit stats                                                     # counts only, never memory text
 personakit tidy                                                      # plan: archive unconfirmed memories unseen for 90 days
 personakit tidy --apply                                              # carry the plan out (reverse any with `personakit undo <id>`)
+personakit digest                                                    # what changed in the last 7 days (local, prints memory text)
 personakit serve                                                     # MCP server over stdio for your assistants
 personakit forget <memory-id>                                        # delete a memory and its quotes for good
 ```
 
-`sweep`, `list`, `stats` and `tidy` also take `--json` for stable, sorted machine-readable output.
+`sweep`, `list`, `stats`, `tidy` and `digest` also take `--json` for stable, sorted machine-readable output.
 
 The model name is always yours to choose. Nothing leaves your machine except the turns you wrote,
 sent to the model you named. See [docs/PRIVACY.md](docs/PRIVACY.md).
@@ -140,6 +141,7 @@ Stated plainly, so you know what you are installing:
 | Codex sessions | Available in 0.1 |
 | Any MCP client (read and propose) | Available in 0.1 |
 | Decay of stale unconfirmed memories (reversible) | Available in 0.2 |
+| Digest of the last days | Available in 0.2 |
 | ChatGPT, claude.ai and Gemini export import | Planned for 0.3 |
 
 ## Documentation

@@ -18,6 +18,7 @@ flowchart TB
     MCP[mcp_server]
     SS[stats: local counts]
     TD[tidy: decay, on request]
+    DG[digest: last days, local]
   end
   CC --> IN
   CX --> IN
@@ -28,6 +29,7 @@ flowchart TB
   ST --> MCP
   ST --> SS
   ST <--> TD
+  ST --> DG
   MCP --> AS[Assistants]
 ```
 
@@ -46,6 +48,7 @@ flowchart TB
 | `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
 | `decay` | Finds unconfirmed memories not seen again for a long time (90 days by default). Pure functions. | `model` |
 | `tidy` | Turns `decay` into a plan (read-only), applies it only on request, and reverses single steps. | `decay`, `store` |
+| `digest` | A summary of the last days: new and archived memories, what awaits review, read counts. Prints memory text, never quotes, to your terminal only. | `store`, `decay` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 
