@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest import mock
 
 from personakit import cli, llm
+from personakit.model import Evidence, Memory
+from personakit.store import Store
 from tests.helpers import reply
 
 FIXTURES = Path(__file__).parent / "fixtures" / "claude_code"
@@ -24,7 +26,7 @@ class FakeCli:
         return reply(MEMORY)
 
 
-class CliTest(unittest.TestCase):
+class CliCase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(__import__("shutil").rmtree, self.tmp)
@@ -36,6 +38,8 @@ class CliTest(unittest.TestCase):
             code = cli.main(["--db", str(self.db), *argv])
         return code, out.getvalue(), err.getvalue()
 
+
+class CliTest(CliCase):
     def test_sweep_then_list_stats_and_forget(self):
         root = self.tmp / "projects"
         (root / "proj").mkdir(parents=True)
@@ -109,6 +113,46 @@ class CliTest(unittest.TestCase):
     def test_db_defaults_to_environment_variable(self):
         with mock.patch.dict("os.environ", {"PERSONAKIT_DB": str(self.db)}):
             self.assertEqual(cli.default_db(), self.db)
+
+
+class TidyCliTest(CliCase):
+    """tidy and undo, on a store seeded with invented memories dated long ago."""
+
+    def seed(self):
+        self.db.parent.mkdir(parents=True, exist_ok=True)
+        with Store(self.db, now=lambda: "2020-01-01T00:00:00Z") as store:
+            for turn, text in enumerate(["You prefer direct, practical feedback.", "You deploy on Fridays."]):
+                store.add(Memory(text=text, category="other", evidence=(Evidence("s1", turn, "q"),)))
+
+    def test_tidy_shows_a_plan_and_changes_nothing_until_applied(self):
+        self.seed()
+        code, out, _ = self.run_cli("tidy", "--days", "30")
+        self.assertEqual(code, 0)
+        self.assertIn("2 to archive. Nothing changed", out)
+        self.assertEqual(json.loads(self.run_cli("list", "--state", "archived", "--json")[1]), [])
+
+    def test_apply_archives_and_undo_restores(self):
+        self.seed()
+        _, out, _ = self.run_cli("tidy", "--apply", "--days", "30")
+        self.assertIn("Archived 2", out)
+        listing = json.loads(self.run_cli("list", "--state", "archived", "--json")[1])
+        self.assertEqual(len(listing), 2)
+        self.assertEqual(self.run_cli("undo", listing[0]["id"])[1], "Restored.\n")
+        self.assertEqual(self.run_cli("undo", listing[0]["id"])[0], 1)
+
+    def test_tidy_json_lists_ids_only(self):
+        self.seed()
+        _, out, _ = self.run_cli("tidy", "--json", "--days", "30")
+        data = json.loads(out)
+        self.assertEqual((data["applied"], len(data["archive"])), (False, 2))
+        self.assertNotIn("prefer", out)
+
+    def test_nothing_to_tidy_on_a_fresh_store(self):
+        self.assertIn("Nothing to tidy.", self.run_cli("tidy")[1])
+
+    def test_tidy_rejects_bad_numbers(self):
+        self.assertEqual(self.run_cli("tidy", "--days", "0")[0], 2)
+        self.assertEqual(self.run_cli("tidy", "--days", "99999999")[0], 2)
 
 
 if __name__ == "__main__":

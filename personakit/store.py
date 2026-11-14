@@ -49,6 +49,11 @@ MIGRATIONS = [
         withheld  INTEGER NOT NULL
     );
     """,
+    # When a statement was last seen again. Decay reads it.
+    """
+    ALTER TABLE memories ADD COLUMN last_seen_at TEXT;
+    UPDATE memories SET last_seen_at = created_at;
+    """,
 ]
 
 
@@ -63,6 +68,10 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._migrate()
+
+    def now(self) -> str:
+        """The store's clock, in the format it records."""
+        return self._now()
 
     def close(self) -> None:
         self._conn.close()
@@ -86,24 +95,29 @@ class Store:
 
     # -- writing --------------------------------------------------------------------
 
-    def add(self, memory: Memory) -> bool:
+    def add(self, memory: Memory, observed: bool = True) -> bool:
         """Store a memory. Returns True if it is new.
 
         If the same memory already exists its evidence is extended and its state is left alone,
-        so extracting a fact twice never undoes a decision the owner made.
+        so extracting a fact twice never undoes a decision the owner made. `observed` says the
+        owner was seen stating it again (an extraction): that refreshes its last-seen time and
+        brings back a memory that decay had archived. An assistant's proposal is not an
+        observation and does neither.
         """
         with self._conn:
+            now = self._now()
             created = self._conn.execute(
                 "INSERT OR IGNORE INTO memories"
-                " (id, text, category, scope, state, created_at, decided_at, decided_by)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                " (id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     memory.id,
                     memory.text,
                     memory.category,
                     memory.scope,
                     memory.state.value,
-                    memory.created_at or self._now(),
+                    memory.created_at or now,
+                    memory.last_seen_at or memory.created_at or now,
                     memory.decided_at,
                     memory.decided_by.value if memory.decided_by else None,
                 ),
@@ -113,7 +127,25 @@ class Store:
                 " VALUES (?, ?, ?, ?)",
                 [(memory.id, e.session_id, e.turn_index, e.quote) for e in memory.evidence],
             )
+            if observed and not created:
+                self._conn.execute("UPDATE memories SET last_seen_at = ? WHERE id = ?", (now, memory.id))
+                self._conn.execute(
+                    "UPDATE memories SET state = ?, decided_at = NULL, decided_by = NULL"
+                    " WHERE id = ? AND state = ? AND decided_by = ?",
+                    (State.UNCONFIRMED.value, memory.id, State.ARCHIVED.value, Decider.POLICY.value),
+                )
         return created
+
+    def restore(self, memory_id: str) -> None:
+        """Bring back a memory that decay archived. Raises KeyError unless policy archived it."""
+        with self._conn:
+            changed = self._conn.execute(
+                "UPDATE memories SET state = ?, decided_at = NULL, decided_by = NULL, last_seen_at = ?"
+                " WHERE id = ? AND state = ? AND decided_by = ?",
+                (State.UNCONFIRMED.value, self._now(), memory_id, State.ARCHIVED.value, Decider.POLICY.value),
+            ).rowcount
+        if changed == 0:
+            raise KeyError(memory_id)
 
     def set_state(self, memory_id: str, state: State, by: Decider) -> None:
         """Move a memory to a new state and record who did it. Raises KeyError if unknown."""
@@ -224,5 +256,6 @@ class Store:
             created_at=row["created_at"],
             decided_at=row["decided_at"],
             decided_by=Decider(row["decided_by"]) if row["decided_by"] else None,
+            last_seen_at=row["last_seen_at"],
             evidence=evidence,
         )

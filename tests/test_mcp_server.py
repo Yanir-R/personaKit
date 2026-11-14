@@ -66,6 +66,17 @@ class ProposeTest(unittest.TestCase):
         self.store = Store(":memory:")
         self.addCleanup(self.store.close)
 
+    def test_proposing_an_archived_statement_does_not_bring_it_back(self):
+        memory = Memory(text="You use Rust for tools.", category="tools", evidence=(Evidence("s1", 0, "I write Rust."),))
+        self.store.add(memory)
+        self.store.set_state(memory.id, State.ARCHIVED, Decider.POLICY)
+        before = self.store.get(memory.id).last_seen_at
+        result = mcp_server.propose_memory(self.store, memory.text, "anything")
+        self.assertFalse(result["new"])
+        after = self.store.get(memory.id)
+        self.assertEqual((after.state, after.last_seen_at), (State.ARCHIVED, before))
+        self.assertEqual(mcp_server.read_memories(self.store, "rust tools")["memories"], [])
+
     def test_proposal_is_stored_unconfirmed_and_marked_as_assistant_proposed(self):
         result = mcp_server.propose_memory(self.store, "You use Rust.", "I write Rust daily", "tools")
         self.assertTrue(result["stored"])
