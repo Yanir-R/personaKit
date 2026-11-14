@@ -21,10 +21,13 @@ def collect(store: Store, now: str, days: int = 7) -> dict:
     archived = [
         m for m in everything if m.state == State.ARCHIVED and m.decided_by == Decider.POLICY and (m.decided_at or "") >= since
     ]
+    merged = store.merges(since=since)
     return {
         "days": days,
         "new": len(new),
         "new_items": _items(new),
+        "merged": len(merged),
+        "merged_items": [{"id": r.duplicate_id, "text": r.duplicate_text} for r in merged[:LISTED]],
         "archived_by_decay": len(archived),
         "archived_items": _items(archived),
         "awaiting_review": store.counts()[State.UNCONFIRMED.value],
@@ -40,6 +43,7 @@ def format_digest(data: dict) -> str:
     lines = [f"PersonaKit digest, last {data['days']} days"]
     for label, count, items in (
         ("New memories", data["new"], data["new_items"]),
+        ("Merged as twins (undo with `personakit undo <id>`)", data["merged"], data["merged_items"]),
         ("Archived as stale (undo with `personakit undo <id>`)", data["archived_by_decay"], data["archived_items"]),
     ):
         lines.append(f"{label}: {count}")
