@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from personakit import decay, digest, llm, mcp_server, review, stats, sweep, tidy
+from personakit import decay, digest, llm, mcp_server, review, stats, sweep, tidy, twins
 from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
@@ -45,13 +45,17 @@ def build_parser() -> argparse.ArgumentParser:
     stats_cmd = sub.add_parser("stats", help="counts only, never memory text")
     stats_cmd.add_argument("--json", action="store_true", help="print a JSON object")
 
-    tidy_cmd = sub.add_parser("tidy", help="archive stale unconfirmed memories (shows a plan; --apply to act)")
+    tidy_cmd = sub.add_parser("tidy", help="fold same-session twins and archive stale memories (shows a plan; --apply to act)")
     tidy_cmd.add_argument("--apply", action="store_true", help="carry out the plan instead of only showing it")
     tidy_cmd.add_argument("--days", type=int, default=decay.DEFAULT_DAYS, help="days unseen before unconfirmed is stale")
+    tidy_cmd.add_argument("--threshold", type=float, default=twins.DEFAULT_THRESHOLD, help="twin similarity, 0 to 1")
+    tidy_cmd.add_argument("--only", choices=["merge", "archive"], default=None, help="do just one of the two steps")
     tidy_cmd.add_argument("--json", action="store_true", help="print a JSON object (ids only)")
 
-    undo_cmd = sub.add_parser("undo", help="bring back one memory that tidy archived")
+    undo_cmd = sub.add_parser("undo", help="reverse one merge or one stale-archive by memory id")
     undo_cmd.add_argument("memory_id")
+
+    sub.add_parser("merges", help="list memories that were merged into another, with their ids")
 
     digest_cmd = sub.add_parser("digest", help="what changed in the last days (prints memory text, locally)")
     digest_cmd.add_argument("--days", type=int, default=7)
@@ -95,11 +99,13 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
         return _tidy(args, store)
     elif args.command == "undo":
         try:
-            tidy.undo(store, args.memory_id)
+            print(tidy.undo(store, args.memory_id).capitalize() + ".")
         except KeyError:
-            print(f"Nothing to undo for {args.memory_id}: tidy did not archive it", file=sys.stderr)
+            print(f"Nothing to undo for {args.memory_id}: not a merged or stale-archived memory", file=sys.stderr)
             return 1
-        print("Restored.")
+    elif args.command == "merges":
+        for record in store.merges():
+            print(f"{record.duplicate_id}  into {record.survivor_id}  {record.duplicate_text}")
     elif args.command == "digest":
         if not 1 <= args.days <= MAX_DAYS:
             print(f"--days must be between 1 and {MAX_DAYS}", file=sys.stderr)
@@ -125,23 +131,34 @@ def _print_json(data: object) -> None:
 
 
 def _tidy(args: argparse.Namespace, store: Store) -> int:
-    if not 1 <= args.days <= MAX_DAYS:
-        print(f"--days must be between 1 and {MAX_DAYS}", file=sys.stderr)
+    if not 1 <= args.days <= MAX_DAYS or not 0 < args.threshold <= 1:
+        print(f"--days must be between 1 and {MAX_DAYS} and --threshold between 0 and 1", file=sys.stderr)
         return 2
-    plan = tidy.make_plan(store, store.now(), args.days)
-    if args.apply:
-        tidy.apply(store, plan)
+    plan = tidy.make_plan(
+        store, store.now(), args.days, args.threshold, merge=args.only != "archive", archive=args.only != "merge"
+    )
+    report = tidy.apply(store, plan) if args.apply else None
     if args.json:
-        _print_json({"applied": args.apply, "archive": [m.id for m in plan.stale]})
+        _print_json(
+            {
+                "applied": report is not None,
+                "merge": [{"keep": g.survivor.id, "fold": [d.id for d in g.duplicates]} for g in plan.groups],
+                "archive": [m.id for m in plan.stale],
+            }
+        )
         return 0
+    for group in plan.groups:
+        print(f"keep    {group.survivor.id}  {group.survivor.text}")
+        for duplicate in group.duplicates:
+            print(f"  fold  {duplicate.id}  {duplicate.text}")
     for memory in plan.stale:
         print(f"archive {memory.id}  {memory.text}")
-    if not plan.stale:
-        print("Nothing to tidy.")
-    elif args.apply:
-        print(f"Archived {len(plan.stale)}. Reverse any with: personakit undo <id>")
+    if report:
+        print(f"Merged {report.merged}, archived {report.archived}. Reverse any with: personakit undo <id>")
+    elif plan.groups or plan.stale:
+        print(f"{plan.merges} to merge, {len(plan.stale)} to archive. Nothing changed; add --apply to carry it out.")
     else:
-        print(f"{len(plan.stale)} to archive. Nothing changed; add --apply to carry it out.")
+        print("Nothing to tidy.")
     return 0
 
 

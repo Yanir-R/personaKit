@@ -116,49 +116,69 @@ class CliTest(CliCase):
 
 
 class TidyCliTest(CliCase):
-    """tidy and undo, on a store seeded with invented memories dated long ago."""
+    """tidy, undo, merges and digest, on a store seeded with invented memories dated long ago."""
 
     def seed(self):
         self.db.parent.mkdir(parents=True, exist_ok=True)
-        with Store(self.db, now=lambda: "2020-01-01T00:00:00Z") as store:
-            for turn, text in enumerate(["You prefer direct, practical feedback.", "You deploy on Fridays."]):
-                store.add(Memory(text=text, category="other", evidence=(Evidence("s1", turn, "q"),)))
+        self.clock = ["2020-01-01T00:00:00Z"]
+        with Store(self.db, now=lambda: self.clock[0]) as store:
+            for turn, text in enumerate(
+                ["You prefer direct, practical feedback.", "You prefer direct and practical feedback from reviewers."]
+            ):
+                self.clock[0] = f"2020-01-01T00:00:0{turn}Z"
+                store.add(Memory(text=text, category="communication", evidence=(Evidence("s1", turn, "q"),)))
 
     def test_tidy_shows_a_plan_and_changes_nothing_until_applied(self):
         self.seed()
-        code, out, _ = self.run_cli("tidy", "--days", "30")
+        code, out, _ = self.run_cli("tidy", "--only", "merge")
         self.assertEqual(code, 0)
-        self.assertIn("2 to archive. Nothing changed", out)
-        self.assertEqual(json.loads(self.run_cli("list", "--state", "archived", "--json")[1]), [])
+        self.assertIn("1 to merge, 0 to archive. Nothing changed", out)
+        self.assertEqual(self.run_cli("merges")[1], "")
 
-    def test_apply_archives_and_undo_restores(self):
+    def test_apply_then_list_merges_then_undo(self):
         self.seed()
-        _, out, _ = self.run_cli("tidy", "--apply", "--days", "30")
-        self.assertIn("Archived 2", out)
+        _, out, _ = self.run_cli("tidy", "--apply", "--only", "merge")
+        self.assertIn("Merged 1, archived 0", out)
+        _, merges, _ = self.run_cli("merges")
+        duplicate_id = merges.split()[0]
+        self.assertEqual(len(json.loads(self.run_cli("list", "--json")[1])), 1)
+        code, out, _ = self.run_cli("undo", duplicate_id)
+        self.assertEqual((code, out), (0, "Unmerged.\n"))
+        self.assertEqual(len(json.loads(self.run_cli("list", "--json")[1])), 2)
+        self.assertEqual(self.run_cli("undo", duplicate_id)[0], 1)
+
+    def test_old_unconfirmed_memories_are_archived_and_can_be_restored(self):
+        self.seed()
+        _, out, _ = self.run_cli("tidy", "--apply", "--only", "archive", "--days", "30")
+        self.assertIn("Merged 0, archived 2", out)
         listing = json.loads(self.run_cli("list", "--state", "archived", "--json")[1])
         self.assertEqual(len(listing), 2)
         self.assertEqual(self.run_cli("undo", listing[0]["id"])[1], "Restored.\n")
-        self.assertEqual(self.run_cli("undo", listing[0]["id"])[0], 1)
 
     def test_tidy_json_lists_ids_only(self):
         self.seed()
         _, out, _ = self.run_cli("tidy", "--json", "--days", "30")
         data = json.loads(out)
-        self.assertEqual((data["applied"], len(data["archive"])), (False, 2))
+        self.assertFalse(data["applied"])
+        self.assertEqual(len(data["merge"][0]["fold"]), 1)
         self.assertNotIn("prefer", out)
 
     def test_nothing_to_tidy_on_a_fresh_store(self):
         self.assertIn("Nothing to tidy.", self.run_cli("tidy")[1])
 
-    def test_digest_prints_text_or_json_and_rejects_bad_numbers(self):
-        self.seed()
-        self.assertIn("PersonaKit digest, last 7 days", self.run_cli("digest")[1])
-        self.assertEqual(json.loads(self.run_cli("digest", "--days", "36500", "--json")[1])["new"], 2)
-        self.assertEqual(self.run_cli("digest", "--days", "-5")[0], 2)
-
     def test_tidy_rejects_bad_numbers(self):
         self.assertEqual(self.run_cli("tidy", "--days", "0")[0], 2)
+        self.assertEqual(self.run_cli("tidy", "--threshold", "1.5")[0], 2)
         self.assertEqual(self.run_cli("tidy", "--days", "99999999")[0], 2)
+        self.assertEqual(self.run_cli("digest", "--days", "-5")[0], 2)
+        self.assertEqual(self.run_cli("digest", "--days", "99999999")[0], 2)
+
+    def test_digest_prints_text_or_json(self):
+        self.seed()
+        _, text, _ = self.run_cli("digest")
+        self.assertIn("PersonaKit digest, last 7 days", text)
+        data = json.loads(self.run_cli("digest", "--days", "36500", "--json")[1])
+        self.assertEqual(data["new"], 2)
 
 
 if __name__ == "__main__":

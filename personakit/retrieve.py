@@ -26,7 +26,7 @@ SERVED_QUOTE_CHARS = 240
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
 
 _WORD = re.compile(r"[a-z0-9']{3,}")
-_STOP = frozenset(
+STOP_WORDS = frozenset(
     "the and for you your with that this have from what how should about are was were not but "
     "can will would could into than then them they their there when where which who why".split()
 )
@@ -39,7 +39,7 @@ class Result:
 
 
 def words(text: str) -> set[str]:
-    return {w for w in _WORD.findall(text.lower()) if w not in _STOP}
+    return {w for w in _WORD.findall(text.lower()) if w not in STOP_WORDS}
 
 
 def search(memories: Iterable[Memory], question: str, limit: int = 7) -> Result:
