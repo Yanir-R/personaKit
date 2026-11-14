@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from personakit import decay, digest, llm, mcp_server, review, stats, sweep, tidy, twins
+from personakit import decay, digest, llm, mcp_server, plugins, review, stats, sweep, tidy, twins
 from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
@@ -73,7 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     db = args.db or default_db()
     db.parent.mkdir(parents=True, exist_ok=True)
     with Store(db) as store:
-        return _dispatch(args, store)
+        try:
+            return _dispatch(args, store)
+        except plugins.PluginError as exc:
+            print(exc, file=sys.stderr)
+            return 2
 
 
 def _dispatch(args: argparse.Namespace, store: Store) -> int:
@@ -121,7 +125,7 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             return 1
         print("Forgotten.")
     elif args.command == "serve":
-        mcp_server.serve(store)
+        mcp_server.serve(store, plugins.load().relevance)
     return 0
 
 
@@ -135,7 +139,13 @@ def _tidy(args: argparse.Namespace, store: Store) -> int:
         print(f"--days must be between 1 and {MAX_DAYS} and --threshold between 0 and 1", file=sys.stderr)
         return 2
     plan = tidy.make_plan(
-        store, store.now(), args.days, args.threshold, merge=args.only != "archive", archive=args.only != "merge"
+        store,
+        store.now(),
+        args.days,
+        args.threshold,
+        merge=args.only != "archive",
+        archive=args.only != "merge",
+        similarity=plugins.load().similarity,
     )
     report = tidy.apply(store, plan) if args.apply else None
     if args.json:

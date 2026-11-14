@@ -37,11 +37,12 @@ def make_plan(
     threshold: float = twins.DEFAULT_THRESHOLD,
     merge: bool = True,
     archive: bool = True,
+    similarity: twins.Similarity = twins.similarity,
 ) -> Plan:
     plan = Plan()
     unconfirmed = store.list(states=[State.UNCONFIRMED])
     if merge:
-        plan.groups = twins.find_twins(unconfirmed, threshold, store.merge_vetoes())
+        plan.groups = twins.find_twins(unconfirmed, threshold, store.merge_vetoes(), similarity)
     if archive:
         # A folded memory is not archived as well, and the memory it folds into counts as seen
         # whenever any member of its group was seen.

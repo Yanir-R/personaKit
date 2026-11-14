@@ -19,8 +19,9 @@ unrelated memories.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import lru_cache
 
 from personakit.model import PROPOSED_BY_ASSISTANT, Memory, State
 from personakit.retrieve import STOP_WORDS
@@ -58,6 +59,7 @@ def _stem(word: str) -> str:
     return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
 
 
+@lru_cache(maxsize=4096)
 def _features(text: str) -> _Features:
     lowered = text.lower().replace("’", "'")
     negated = bool(_NEGATION.search(lowered))
@@ -65,24 +67,24 @@ def _features(text: str) -> _Features:
     return _Features(words, tuple(sorted(_NUMBER.findall(lowered))), negated)
 
 
-def _score(a: _Features, b: _Features) -> float:
-    if a.numbers != b.numbers or a.negated != b.negated:
-        return 0.0
-    shared = set(a.words) & set(b.words)
-    if len(shared) < MIN_SHARED_WORDS:
-        return 0.0
-    if [w for w in a.words if w in shared] != [w for w in b.words if w in shared]:
-        return 0.0
-    return len(shared) / len(set(a.words) | set(b.words))
-
-
 def similarity(a: str, b: str) -> float:
-    """Share of words two texts have in common, from 0 to 1.
+    """The built-in similarity: share of words two texts have in common, from 0 to 1.
 
     0 when they disagree on numbers or negation, share fewer than MIN_SHARED_WORDS words, or
     use the shared words in a different order.
     """
-    return _score(_features(a), _features(b))
+    left, right = _features(a), _features(b)
+    if left.numbers != right.numbers or left.negated != right.negated:
+        return 0.0
+    shared = set(left.words) & set(right.words)
+    if len(shared) < MIN_SHARED_WORDS:
+        return 0.0
+    if [w for w in left.words if w in shared] != [w for w in right.words if w in shared]:
+        return 0.0
+    return len(shared) / len(set(left.words) | set(right.words))
+
+
+Similarity = Callable[[str, str], float]
 
 
 def _single_session(memory: Memory) -> str | None:
@@ -96,31 +98,34 @@ def find_twins(
     memories: Iterable[Memory],
     threshold: float = DEFAULT_THRESHOLD,
     vetoed: frozenset[frozenset[str]] = frozenset(),
+    similarity: Similarity = similarity,
 ) -> list[TwinGroup]:
     """Group eligible memories into survivor + duplicates.
+
+    `similarity` only scores a pair of texts; which memories are eligible is decided here.
 
     `vetoed` holds id pairs the owner already un-merged; they are never proposed again.
     The survivor is the oldest memory in a group, so results do not depend on input order.
     """
     eligible = sorted(
-        ((m, _single_session(m), _features(m.text)) for m in memories if m.state == State.UNCONFIRMED),
+        ((m, _single_session(m)) for m in memories if m.state == State.UNCONFIRMED),
         key=lambda item: (item[0].created_at or "", item[0].id),
     )
     eligible = [item for item in eligible if item[1]]
     taken: set[str] = set()
     groups: list[TwinGroup] = []
-    for index, (anchor, session, features) in enumerate(eligible):
+    for index, (anchor, session) in enumerate(eligible):
         if anchor.id in taken:
             continue
         twins = tuple(
             other
-            for other, other_session, other_features in eligible[index + 1 :]
+            for other, other_session in eligible[index + 1 :]
             if other.id not in taken
             and other_session == session
             and other.category == anchor.category
             and other.scope == anchor.scope
             and frozenset((anchor.id, other.id)) not in vetoed
-            and _score(features, other_features) >= threshold
+            and similarity(anchor.text, other.text) >= threshold
         )
         if twins:
             taken.update(m.id for m in twins)

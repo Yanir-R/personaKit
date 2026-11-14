@@ -173,6 +173,12 @@ class TidyCliTest(CliCase):
         self.assertEqual(self.run_cli("digest", "--days", "-5")[0], 2)
         self.assertEqual(self.run_cli("digest", "--days", "99999999")[0], 2)
 
+    def test_naming_a_plugin_that_is_not_installed_fails_clearly(self):
+        with mock.patch.dict("os.environ", {"PERSONAKIT_PLUGINS": "not-installed"}):
+            code, _, err = self.run_cli("tidy")
+        self.assertEqual(code, 2)
+        self.assertIn("not-installed", err)
+
     def test_digest_prints_text_or_json(self):
         self.seed()
         _, text, _ = self.run_cli("digest")

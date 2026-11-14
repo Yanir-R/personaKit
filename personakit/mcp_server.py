@@ -14,10 +14,10 @@ from personakit.store import Store
 NOTE_UNCONFIRMED = "Unconfirmed: extracted from the owner's conversations but not yet reviewed by them."
 
 
-def read_memories(store: Store, question: str, limit: int = 7) -> dict:
+def read_memories(store: Store, question: str, limit: int = 7, relevance: retrieve.Relevance = retrieve.overlap) -> dict:
     """Memories relevant to a question, under the one read policy."""
     limit = max(1, min(limit, 20))
-    result = retrieve.search(store.list(), question, limit)
+    result = retrieve.search(store.list(), question, limit, relevance)
     store.log_read(len(result.memories), result.withheld)
     response = {
         "memories": [
@@ -55,7 +55,7 @@ def propose_memory(store: Store, text: str, quote: str, category: str = "other")
     return {"stored": True, "id": memory.id, "new": created, "state": State.UNCONFIRMED.value}
 
 
-def build_server(store: Store):
+def build_server(store: Store, relevance: retrieve.Relevance = retrieve.overlap):
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
@@ -66,7 +66,7 @@ def build_server(store: Store):
     @server.tool()
     def personakit_read(question: str, limit: int = 7) -> dict:
         """Read the owner's memories relevant to a question. Unconfirmed ones are labelled."""
-        return read_memories(store, question, limit)
+        return read_memories(store, question, limit, relevance)
 
     @server.tool()
     def personakit_propose(text: str, quote: str, category: str = "other") -> dict:
@@ -76,5 +76,5 @@ def build_server(store: Store):
     return server
 
 
-def serve(store: Store) -> None:
-    build_server(store).run()
+def serve(store: Store, relevance: retrieve.Relevance = retrieve.overlap) -> None:
+    build_server(store, relevance).run()
