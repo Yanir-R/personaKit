@@ -182,9 +182,10 @@ class Store:
 
     # -- reading --------------------------------------------------------------------
 
-    def read_stats(self) -> dict[str, int]:
+    def read_stats(self, since: str | None = None) -> dict[str, int]:
         row = self._conn.execute(
-            "SELECT COUNT(*) AS reads, COALESCE(SUM(returned > 0), 0) AS with_results FROM reads"
+            "SELECT COUNT(*) AS reads, COALESCE(SUM(returned > 0), 0) AS with_results FROM reads WHERE at >= ?",
+            (since or "",),
         ).fetchone()
         return {"reads": row["reads"], "reads_with_results": row["with_results"]}
 
