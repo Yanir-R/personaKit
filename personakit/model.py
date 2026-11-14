@@ -72,6 +72,7 @@ class Memory:
     created_at: str | None = None
     decided_at: str | None = None
     decided_by: Decider | None = None
+    last_seen_at: str | None = None  # last time the same statement was extracted again
 
     def __post_init__(self) -> None:
         if not self.text.strip():
