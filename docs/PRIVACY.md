@@ -17,9 +17,10 @@
   Sharing the output is your choice.
 - **Deletion:** `personakit forget` removes a memory and its evidence from the store.
 - **Tidy and undo:** `personakit tidy` reads your store and, only with `--apply`, folds
-  near-identical memories together and archives stale ones. A merged memory is kept inside your
-  store, as a record that lets `personakit undo` restore it; the record is emptied on undo and
-  deleted when you `forget` the memory it was merged into (or the merged memory itself). Nothing
-  leaves your machine, and nothing here calls a model.
+  near-identical memories together and archives stale ones. A folded memory stays in your store
+  with its own quotes, so `personakit undo` restores it exactly. `personakit forget` on a folded
+  memory deletes it and every quote it brought; `forget` on the memory it was folded into deletes
+  both, since they are the same statement. Nothing leaves your machine, and nothing here calls a
+  model. Assistants cannot merge, undo, archive or restore.
 - **Digest:** `personakit digest` prints memory ids and text (never evidence quotes) to your
   terminal. Unlike `stats` it is not counts-only, so look before pasting it anywhere.

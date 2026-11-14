@@ -37,7 +37,20 @@ class SimilarityTest(unittest.TestCase):
         self.assertEqual(similarity("You use tabs for indentation.", "You don't use tabs for indentation."), 0.0)
 
     def test_swapped_order_is_not_a_twin(self):
-        self.assertLess(similarity("You prefer unit tests before integration tests.", "You prefer integration tests before unit tests."), 0.8)
+        self.assertEqual(similarity("You prefer unit tests before integration tests.", "You prefer integration tests before unit tests."), 0.0)
+        self.assertEqual(similarity("Prefers JS over TS for frontend projects at work", "Prefers TS over JS for frontend projects at work"), 0.0)
+
+    def test_short_words_count(self):
+        self.assertLess(similarity("You write backend services in Go.", "You write backend services in C."), 0.8)
+
+    def test_negation_is_seen_with_any_apostrophe_and_any_contraction(self):
+        plain = "Likes verbose commit messages in reviews"
+        for negated in (
+            "Doesn\u2019t like verbose commit messages in reviews",
+            "Hasnt liked verbose commit messages in reviews",
+            "Hadn't liked verbose commit messages in reviews",
+        ):
+            self.assertEqual(similarity(negated, plain), 0.0, negated)
 
     def test_number_words_count_like_digits(self):
         self.assertEqual(similarity("You live with two cats at home.", "You live with three cats at home."), 0.0)

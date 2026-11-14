@@ -7,7 +7,7 @@ memory the owner has decided on is touched.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from personakit import decay, twins
 from personakit.model import Decider, State
@@ -39,14 +39,22 @@ def make_plan(
     archive: bool = True,
 ) -> Plan:
     plan = Plan()
+    unconfirmed = store.list(states=[State.UNCONFIRMED])
     if merge:
-        undone = frozenset(
-            frozenset((r.duplicate_id, r.survivor_id)) for r in store.merges(active_only=False) if r.undone_at
-        )
-        plan.groups = twins.find_twins(store.list(states=[State.UNCONFIRMED]), threshold, undone)
+        plan.groups = twins.find_twins(unconfirmed, threshold, store.merge_vetoes())
     if archive:
-        folded = {d.id for g in plan.groups for d in g.duplicates}  # about to disappear, so not archived too
-        plan.stale = [m for m in decay.find_stale(store.list(states=[State.UNCONFIRMED]), now, days) if m.id not in folded]
+        # A folded memory is not archived as well, and the memory it folds into counts as seen
+        # whenever any member of its group was seen.
+        folded = {d.id for g in plan.groups for d in g.duplicates}
+        freshest = {
+            g.survivor.id: max((m.last_seen_at or "") for m in (g.survivor, *g.duplicates)) for g in plan.groups
+        }
+        candidates = [
+            replace(m, last_seen_at=freshest[m.id]) if m.id in freshest else m
+            for m in unconfirmed
+            if m.id not in folded
+        ]
+        plan.stale = decay.find_stale(candidates, now, days)
     return plan
 
 

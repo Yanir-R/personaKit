@@ -13,6 +13,7 @@ from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
 
+MAX_DAYS = 36500
 CLIENTS = {"claude": llm.ClaudeCli, "codex": llm.CodexCli}
 
 
@@ -106,6 +107,9 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
         for record in store.merges():
             print(f"{record.duplicate_id}  into {record.survivor_id}  {record.duplicate_text}")
     elif args.command == "digest":
+        if not 1 <= args.days <= MAX_DAYS:
+            print(f"--days must be between 1 and {MAX_DAYS}", file=sys.stderr)
+            return 2
         collected = digest.collect(store, store.now(), args.days)
         if args.json:
             _print_json(collected)
@@ -127,8 +131,8 @@ def _print_json(data: object) -> None:
 
 
 def _tidy(args: argparse.Namespace, store: Store) -> int:
-    if args.days < 1 or not 0 < args.threshold <= 1:
-        print("--days must be at least 1 and --threshold between 0 and 1", file=sys.stderr)
+    if not 1 <= args.days <= MAX_DAYS or not 0 < args.threshold <= 1:
+        print(f"--days must be between 1 and {MAX_DAYS} and --threshold between 0 and 1", file=sys.stderr)
         return 2
     plan = tidy.make_plan(
         store, store.now(), args.days, args.threshold, merge=args.only != "archive", archive=args.only != "merge"

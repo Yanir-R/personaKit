@@ -63,6 +63,14 @@ class TidyTest(unittest.TestCase):
         tidy.undo(self.store, self.twin.id)
         self.assertEqual(tidy.make_plan(self.store, NOW, days=90, archive=False).groups, [])
 
+    def test_a_survivor_is_not_stale_when_its_twin_was_seen_recently(self):
+        self.store.add(mem(self.twin.text, turn=1))  # the twin is extracted again today
+        plan = tidy.make_plan(self.store, NOW, days=90)
+        self.assertEqual((plan.merges, [m.id for m in plan.stale]), (1, [self.old.id]))
+        tidy.apply(self.store, plan)
+        self.assertEqual(self.store.get(self.keep.id).state, State.UNCONFIRMED)
+        self.assertEqual(tidy.make_plan(self.store, NOW, days=90).stale, [])
+
     def test_steps_can_run_alone(self):
         self.assertEqual(tidy.make_plan(self.store, NOW, merge=False).groups, [])
         self.assertEqual(tidy.make_plan(self.store, NOW, archive=False).stale, [])
