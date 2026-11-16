@@ -33,6 +33,16 @@ class DigestTest(unittest.TestCase):
         self.assertIn("Awaiting your review: 2", text)
         self.assertNotIn("quote", text)
 
+    def test_digest_lists_merged_twins(self):
+        keep, twin = mem("You prefer direct, practical feedback."), mem("You prefer direct and practical feedback from reviewers.", turn=1)
+        self.store.add(keep)
+        self.clock[0] = "2026-01-01T00:00:01Z"
+        self.store.add(twin)
+        self.clock[0] = NOW
+        tidy.apply(self.store, tidy.make_plan(self.store, NOW, archive=False))
+        data = digest.collect(self.store, NOW, days=7)
+        self.assertEqual((data["merged"], data["merged_items"][0]["id"]), (1, twin.id))
+
     def test_digest_shows_what_decay_archived_and_caps_long_lists(self):
         for i in range(digest.LISTED + 2):
             self.store.add(mem(f"You track item number {i} in notes.", turn=i))

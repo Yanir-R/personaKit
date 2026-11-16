@@ -8,8 +8,7 @@ Install the optional dependency with: pip install "personakit[mcp]"
 from __future__ import annotations
 
 from personakit import extract, retrieve
-from personakit.model import Evidence, Memory, State
-from personakit.review import PROPOSED_BY_ASSISTANT
+from personakit.model import PROPOSED_BY_ASSISTANT, Evidence, Memory, State
 from personakit.store import Store
 
 NOTE_UNCONFIRMED = "Unconfirmed: extracted from the owner's conversations but not yet reviewed by them."

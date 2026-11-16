@@ -8,6 +8,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 
+# Evidence from an assistant's own proposal carries this session id instead of a real session.
+PROPOSED_BY_ASSISTANT = "mcp-proposal"
+
 
 class State(str, Enum):
     """Where a memory stands. Only the owner can approve, restrict or forget."""

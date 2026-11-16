@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -54,7 +55,33 @@ MIGRATIONS = [
     ALTER TABLE memories ADD COLUMN last_seen_at TEXT;
     UPDATE memories SET last_seen_at = created_at;
     """,
+    # Reversible merges. A merged memory keeps its own row and evidence and points at the memory
+    # it was folded into, so undoing is exact and forgetting either one leaves nothing behind.
+    """
+    ALTER TABLE memories ADD COLUMN merged_into TEXT REFERENCES memories(id) ON DELETE CASCADE;
+    ALTER TABLE memories ADD COLUMN merged_at TEXT;
+    CREATE TABLE merge_vetoes (
+        first_id   TEXT NOT NULL,
+        second_id  TEXT NOT NULL,
+        PRIMARY KEY (first_id, second_id)
+    );
+    """,
 ]
+
+# A memory together with everything folded into it, directly or through another folded memory.
+_GROUP = (
+    "WITH RECURSIVE grp(id) AS (SELECT ? UNION SELECT m.id FROM memories m JOIN grp ON m.merged_into = grp.id) "
+)
+
+
+@dataclass(frozen=True)
+class MergeRecord:
+    """One memory folded into another."""
+
+    duplicate_id: str
+    survivor_id: str
+    merged_at: str
+    duplicate_text: str
 
 
 def _utc_now() -> str:
@@ -136,6 +163,56 @@ class Store:
                 )
         return created
 
+    def merge(self, duplicate_id: str, survivor_id: str) -> None:
+        """Fold one unconfirmed memory into another. `undo_merge` reverses it exactly.
+
+        The duplicate keeps its row and evidence but is no longer listed or served on its own;
+        the survivor shows the evidence of both. Only unconfirmed memories can be merged, so an
+        owner's decision is never overridden.
+        """
+        if duplicate_id == survivor_id:
+            raise ValueError("cannot merge a memory into itself")
+        duplicate, survivor = self.get(duplicate_id), self.get(survivor_id)
+        if duplicate is None or survivor is None:
+            raise KeyError(duplicate_id if duplicate is None else survivor_id)
+        if duplicate.state != State.UNCONFIRMED or survivor.state != State.UNCONFIRMED:
+            raise ValueError("only unconfirmed memories can be merged")
+        with self._conn:
+            self._conn.execute(
+                "UPDATE memories SET merged_into = ?, merged_at = ? WHERE id = ?",
+                (survivor_id, self._now(), duplicate_id),
+            )
+
+    def undo_merge(self, duplicate_id: str) -> None:
+        """Make a merged memory stand on its own again, and never propose that pair again.
+        Raises KeyError if the memory is not merged."""
+        row = self._conn.execute(
+            "SELECT merged_into FROM memories WHERE id = ? AND merged_into IS NOT NULL", (duplicate_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(duplicate_id)
+        with self._conn:
+            self._conn.execute("UPDATE memories SET merged_into = NULL, merged_at = NULL WHERE id = ?", (duplicate_id,))
+            self._conn.execute(
+                "INSERT OR IGNORE INTO merge_vetoes (first_id, second_id) VALUES (?, ?)",
+                tuple(sorted((duplicate_id, row["merged_into"]))),
+            )
+
+    def merges(self, since: str | None = None) -> list[MergeRecord]:
+        """Memories currently folded into another, oldest merge first."""
+        rows = self._conn.execute(
+            "SELECT id, merged_into, merged_at, text FROM memories"
+            " WHERE merged_into IS NOT NULL AND merged_at >= ? ORDER BY merged_at, id",
+            (since or "",),
+        )
+        return [MergeRecord(r["id"], r["merged_into"], r["merged_at"], r["text"]) for r in rows]
+
+    def merge_vetoes(self) -> frozenset[frozenset[str]]:
+        """Pairs the owner un-merged. They are never proposed as twins again."""
+        return frozenset(
+            frozenset((r["first_id"], r["second_id"])) for r in self._conn.execute("SELECT * FROM merge_vetoes")
+        )
+
     def restore(self, memory_id: str) -> None:
         """Bring back a memory that decay archived. Raises KeyError unless policy archived it."""
         with self._conn:
@@ -151,18 +228,26 @@ class Store:
         """Move a memory to a new state and record who did it. Raises KeyError if unknown."""
         with self._conn:
             changed = self._conn.execute(
-                "UPDATE memories SET state = ?, decided_at = ?, decided_by = ? WHERE id = ?",
+                "UPDATE memories SET state = ?, decided_at = ?, decided_by = ?"
+                " WHERE id = ? AND merged_into IS NULL",
                 (state.value, self._now(), by.value, memory_id),
             ).rowcount
         if changed == 0:
             raise KeyError(memory_id)
 
     def forget(self, memory_id: str) -> bool:
-        """Delete a memory and its evidence. Returns False if it did not exist."""
+        """Delete a memory and its evidence. Returns False if it did not exist.
+
+        Memories folded into it are the same statement and go with it. A memory that is itself
+        folded into another can be forgotten by its id; the other memory stays.
+        """
         with self._conn:
-            return self._conn.execute(
-                "DELETE FROM memories WHERE id = ?", (memory_id,)
-            ).rowcount == 1
+            deleted = self._conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,)).rowcount == 1
+            self._conn.execute(
+                "DELETE FROM merge_vetoes WHERE first_id NOT IN (SELECT id FROM memories)"
+                " OR second_id NOT IN (SELECT id FROM memories)"
+            )
+        return deleted
 
     def mark_session_seen(self, source: str, session_id: str, fingerprint: str) -> None:
         with self._conn:
@@ -200,13 +285,25 @@ class Store:
         return row is not None and row["fingerprint"] == fingerprint
 
     def get(self, memory_id: str) -> Memory | None:
-        row = self._conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
-        return self._load(row) if row else None
+        """One memory with the evidence of everything folded into it. None for an unknown id or
+        a memory that is itself folded into another."""
+        row = self._conn.execute(
+            "SELECT * FROM memories WHERE id = ? AND merged_into IS NULL", (memory_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        evidence = self._conn.execute(
+            _GROUP + "SELECT e.* FROM evidence e JOIN grp ON e.memory_id = grp.id", (memory_id,)
+        ).fetchall()
+        seen = self._conn.execute(
+            _GROUP + "SELECT MAX(m.last_seen_at) FROM memories m JOIN grp ON m.id = grp.id", (memory_id,)
+        ).fetchone()[0]
+        return self._build(row, _own_first(evidence, memory_id), seen)
 
     def list(
         self, states: Iterable[State] | None = None, scope: str | None = None
     ) -> list[Memory]:
-        clauses, params = [], []
+        clauses, params = ["merged_into IS NULL"], []
         if states is not None:
             values = [s.value for s in states]
             clauses.append(f"state IN ({','.join('?' * len(values))})")
@@ -214,40 +311,45 @@ class Store:
         if scope is not None:
             clauses.append("scope = ?")
             params.append(scope)
-        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         rows = self._conn.execute(
-            "SELECT * FROM memories" + where + " ORDER BY created_at, rowid", params
+            "SELECT * FROM memories WHERE " + " AND ".join(clauses) + " ORDER BY created_at, rowid", params
         ).fetchall()
-        evidence: dict[str, list[Evidence]] = {}
-        for r in self._conn.execute(
-            "SELECT * FROM evidence WHERE memory_id IN (SELECT id FROM memories" + where + ")"
-            " ORDER BY memory_id, session_id, turn_index",
-            params,
-        ):
-            evidence.setdefault(r["memory_id"], []).append(
-                Evidence(r["session_id"], r["turn_index"], r["quote"])
+
+        # Evidence and last-seen time of folded memories count towards the memory they end up in.
+        folded = dict(self._conn.execute("SELECT id, merged_into FROM memories WHERE merged_into IS NOT NULL"))
+        seen_by = dict(self._conn.execute("SELECT id, last_seen_at FROM memories WHERE merged_into IS NOT NULL"))
+
+        def root(memory_id: str) -> str:
+            while memory_id in folded:
+                memory_id = folded[memory_id]
+            return memory_id
+
+        evidence: dict[str, list[sqlite3.Row]] = {}
+        for r in self._conn.execute("SELECT * FROM evidence"):
+            evidence.setdefault(root(r["memory_id"]), []).append(r)
+        last_seen: dict[str, str] = {}
+        for memory_id, seen in seen_by.items():
+            last_seen[root(memory_id)] = max(last_seen.get(root(memory_id), ""), seen or "")
+        return [
+            self._build(
+                row,
+                _own_first(evidence.get(row["id"], ()), row["id"]),
+                max(row["last_seen_at"] or "", last_seen.get(row["id"], "")) or None,
             )
-        return [self._build(row, tuple(evidence.get(row["id"], ()))) for row in rows]
+            for row in rows
+        ]
 
     def counts(self) -> dict[str, int]:
         """Number of memories in each state. Counts only, never content."""
         result = {state.value: 0 for state in State}
-        for row in self._conn.execute("SELECT state, COUNT(*) AS n FROM memories GROUP BY state"):
+        for row in self._conn.execute(
+            "SELECT state, COUNT(*) AS n FROM memories WHERE merged_into IS NULL GROUP BY state"
+        ):
             result[row["state"]] = row["n"]
         return result
 
-    def _load(self, row: sqlite3.Row) -> Memory:
-        evidence = tuple(
-            Evidence(r["session_id"], r["turn_index"], r["quote"])
-            for r in self._conn.execute(
-                "SELECT * FROM evidence WHERE memory_id = ? ORDER BY session_id, turn_index",
-                (row["id"],),
-            )
-        )
-        return self._build(row, evidence)
-
     @staticmethod
-    def _build(row: sqlite3.Row, evidence: tuple[Evidence, ...]) -> Memory:
+    def _build(row: sqlite3.Row, evidence: tuple[Evidence, ...], last_seen_at: str | None) -> Memory:
         return Memory(
             id=row["id"],
             text=row["text"],
@@ -257,6 +359,14 @@ class Store:
             created_at=row["created_at"],
             decided_at=row["decided_at"],
             decided_by=Decider(row["decided_by"]) if row["decided_by"] else None,
-            last_seen_at=row["last_seen_at"],
+            last_seen_at=last_seen_at,
             evidence=evidence,
         )
+
+
+def _own_first(rows: Iterable[sqlite3.Row], memory_id: str) -> tuple[Evidence, ...]:
+    """Evidence in session and turn order, one per turn, preferring the memory's own quote."""
+    unique: dict[tuple[str, int], Evidence] = {}
+    for r in sorted(rows, key=lambda r: (r["session_id"], r["turn_index"], r["memory_id"] != memory_id)):
+        unique.setdefault((r["session_id"], r["turn_index"]), Evidence(r["session_id"], r["turn_index"], r["quote"]))
+    return tuple(unique.values())

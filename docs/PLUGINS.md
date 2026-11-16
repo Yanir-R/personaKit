@@ -1,10 +1,11 @@
 # Plugins
 
-PersonaKit has one extension point. It replaces a scoring function and nothing else.
+PersonaKit has two extension points. Both replace a scoring function and nothing else.
 
 | Hook | Signature | Built-in | Used by |
 |---|---|---|---|
 | `relevance` | `(question: str, memories: Sequence[Memory]) -> Sequence[float]` | word overlap | `personakit serve` (which memories answer a question, and in what order) |
+| `similarity` | `(a: str, b: str) -> float` between 0 and 1 | shared words, with number, negation and order guards | `personakit tidy` (which memories are twins) |
 
 ## What a plugin cannot do
 
@@ -12,7 +13,10 @@ Policy stays in the core, whatever a plugin returns:
 
 - Restricted and archived memories are never served. A relevance score only orders what the read
   policy already allows.
-- No hook can approve, restrict, archive or forget.
+- Only unconfirmed memories with the same category and scope, none resting on an assistant's
+  proposal, can be proposed as twins, and only when they mention the same numbers and agree on
+  negation. Merging still needs `personakit tidy --apply` and is reversible.
+- No hook can approve, restrict, archive, restore or forget.
 
 A plugin is still Python code running as you, with access to your store file. Enable only
 plugins you trust and have read.
@@ -24,7 +28,7 @@ Nothing is loaded just because it is installed. Name the plugins you want:
 ```sh
 pip install some-personakit-plugin
 export PERSONAKIT_PLUGINS=some-name        # comma separated for several, applied in order
-personakit serve
+personakit tidy
 ```
 
 A name that is not installed is an error, not a silent fallback.
@@ -43,9 +47,9 @@ some-name = "some_package:register"
 ```python
 # some_package/__init__.py
 def register(hooks):
-    hooks.relevance = my_relevance
+    hooks.similarity = my_similarity      # leave hooks.relevance alone to keep the built-in
 ```
 
 For anything beyond scoring, use PersonaKit as a library: `personakit.store.Store` is the one
-place that reads and writes the database, and `Store.set_state` is the same operation the CLI
-uses.
+place that reads and writes the database, and `Store.merge`, `Store.undo_merge`,
+`Store.set_state` and `Store.restore` are the same reversible operations the CLI uses.

@@ -1,13 +1,13 @@
-"""Extension points: swap how relevance is scored, nothing else.
+"""Extension points: swap how relevance and similarity are scored, nothing else.
 
 A plugin is a Python package you installed that registers an entry point in the
 `personakit.plugins` group. The entry point is a function that receives a `Hooks` object and
-replaces the scoring function it provides. Nothing is loaded unless you name it in the
+replaces the scoring functions it provides. Nothing is loaded unless you name it in the
 PERSONAKIT_PLUGINS environment variable (comma separated), so installing a package never
 changes how PersonaKit behaves by itself.
 
-A plugin only scores. Which memories may be served and every state change stay in `retrieve`
-and `store`. A plugin is still code running as you, with access to
+A plugin only scores. Which memories may be served, which may be merged, and every state change
+stay in `retrieve`, `twins` and `store`. A plugin is still code running as you, with access to
 your store file: enable only ones you trust.
 """
 
@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from importlib.metadata import EntryPoint, entry_points
 
-from personakit import retrieve
+from personakit import retrieve, twins
 
 GROUP = "personakit.plugins"
 ENABLE_ENV = "PERSONAKIT_PLUGINS"
@@ -30,9 +30,10 @@ class PluginError(Exception):
 
 @dataclass
 class Hooks:
-    """The functions a plugin may replace. The default is the built-in word-based one."""
+    """The functions a plugin may replace. The defaults are the built-in word-based ones."""
 
     relevance: retrieve.Relevance = retrieve.overlap  # (question, memories) -> one score per memory
+    similarity: twins.Similarity = twins.similarity  # (text, text) -> 0 to 1
 
 
 def enabled_names() -> list[str]:
@@ -53,6 +54,6 @@ def load(
         if name not in installed:
             raise PluginError(f"plugin {name!r} is named in {ENABLE_ENV} but is not installed")
         installed[name].load()(hooks)
-    if not all(callable(hook) for hook in vars(hooks).values()):
+    if not callable(hooks.relevance) or not callable(hooks.similarity):
         raise PluginError("a plugin replaced a hook with something that cannot be called")
     return hooks
