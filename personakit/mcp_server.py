@@ -52,7 +52,7 @@ def propose_memory(store: Store, text: str, quote: str, category: str = "other")
         category=category if category in extract.CATEGORIES else "other",
         evidence=(Evidence(PROPOSED_BY_ASSISTANT, 0, extract.quote_of(quote.strip())),),
     )
-    created = store.add(memory)
+    created = store.add(memory, observed=False)
     return {"stored": True, "id": memory.id, "new": created, "state": State.UNCONFIRMED.value}
 
 

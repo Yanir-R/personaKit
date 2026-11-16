@@ -16,6 +16,11 @@
 - **Statistics:** `personakit stats` prints counts to your terminal. It never includes memory text.
   Sharing the output is your choice.
 - **Deletion:** `personakit forget` removes a memory and its evidence from the store.
+- **Tidy and undo:** `personakit tidy` reads your store and, only with `--apply`, archives stale
+  unconfirmed memories. `personakit undo` brings one back. Nothing leaves your machine, nothing
+  here calls a model, and assistants cannot archive or restore.
+- **Digest:** `personakit digest` prints memory ids and text (never evidence quotes) to your
+  terminal. Unlike `stats` it is not counts-only, so look before pasting it anywhere.
 - **Plugins:** none are loaded unless you name them in `PERSONAKIT_PLUGINS`. A plugin replaces
   how relevance is scored and cannot change what is served, but it is code you installed, running
   as you. What it does with your data is up to that plugin; read it first.
