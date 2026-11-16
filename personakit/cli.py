@@ -8,11 +8,12 @@ import os
 import sys
 from pathlib import Path
 
-from personakit import llm, mcp_server, review, stats, sweep
+from personakit import decay, llm, mcp_server, review, stats, sweep, tidy
 from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
 
+MAX_DAYS = 36500
 CLIENTS = {"claude": llm.ClaudeCli, "codex": llm.CodexCli}
 
 
@@ -43,6 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     stats_cmd = sub.add_parser("stats", help="counts only, never memory text")
     stats_cmd.add_argument("--json", action="store_true", help="print a JSON object")
+
+    tidy_cmd = sub.add_parser("tidy", help="archive stale unconfirmed memories (shows a plan; --apply to act)")
+    tidy_cmd.add_argument("--apply", action="store_true", help="carry out the plan instead of only showing it")
+    tidy_cmd.add_argument("--days", type=int, default=decay.DEFAULT_DAYS, help="days unseen before unconfirmed is stale")
+    tidy_cmd.add_argument("--json", action="store_true", help="print a JSON object (ids only)")
+
+    undo_cmd = sub.add_parser("undo", help="bring back one memory that tidy archived")
+    undo_cmd.add_argument("memory_id")
 
     forget = sub.add_parser("forget", help="permanently delete a memory and its quotes")
     forget.add_argument("memory_id")
@@ -78,6 +87,15 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             _print_json(collected)
         else:
             print(stats.format_stats(collected))
+    elif args.command == "tidy":
+        return _tidy(args, store)
+    elif args.command == "undo":
+        try:
+            tidy.undo(store, args.memory_id)
+        except KeyError:
+            print(f"Nothing to undo for {args.memory_id}: tidy did not archive it", file=sys.stderr)
+            return 1
+        print("Restored.")
     elif args.command == "forget":
         if not store.forget(args.memory_id):
             print(f"No memory with id {args.memory_id}", file=sys.stderr)
@@ -91,6 +109,27 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
 def _print_json(data: object) -> None:
     """One stable, sorted JSON document per call, so output is byte-for-byte repeatable."""
     print(json.dumps(data, sort_keys=True, ensure_ascii=False))
+
+
+def _tidy(args: argparse.Namespace, store: Store) -> int:
+    if not 1 <= args.days <= MAX_DAYS:
+        print(f"--days must be between 1 and {MAX_DAYS}", file=sys.stderr)
+        return 2
+    plan = tidy.make_plan(store, store.now(), args.days)
+    if args.apply:
+        tidy.apply(store, plan)
+    if args.json:
+        _print_json({"applied": args.apply, "archive": [m.id for m in plan.stale]})
+        return 0
+    for memory in plan.stale:
+        print(f"archive {memory.id}  {memory.text}")
+    if not plan.stale:
+        print("Nothing to tidy.")
+    elif args.apply:
+        print(f"Archived {len(plan.stale)}. Reverse any with: personakit undo <id>")
+    else:
+        print(f"{len(plan.stale)} to archive. Nothing changed; add --apply to carry it out.")
+    return 0
 
 
 def _sweep(args: argparse.Namespace, store: Store) -> int:

@@ -16,3 +16,6 @@
 - **Statistics:** `personakit stats` prints counts to your terminal. It never includes memory text.
   Sharing the output is your choice.
 - **Deletion:** `personakit forget` removes a memory and its evidence from the store.
+- **Tidy and undo:** `personakit tidy` reads your store and, only with `--apply`, archives stale
+  unconfirmed memories. `personakit undo` brings one back. Nothing leaves your machine, nothing
+  here calls a model, and assistants cannot archive or restore.

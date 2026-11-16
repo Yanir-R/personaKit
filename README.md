@@ -26,7 +26,7 @@ memories ("you prefer direct, practical feedback"), keeps the exact quote each o
 and serves only what you allow back to your assistants over MCP. Everything runs on your own
 machine. There is no PersonaKit server and no account.
 
-> **Status: pre-release (0.1 in progress).** This repository is being built in public.
+> **Status: pre-release (0.2 in progress).** This repository is being built in public.
 > See [docs/ROADMAP.md](docs/ROADMAP.md) for what exists and what is planned.
 
 ## Why PersonaKit
@@ -53,11 +53,13 @@ personakit sweep --cli claude --model <model-name> --max-calls 20   # read sessi
 personakit review                                                    # optional: approve, restrict, hide, forget
 personakit list                                                      # see what is stored
 personakit stats                                                     # counts only, never memory text
+personakit tidy                                                      # plan: archive unconfirmed memories unseen for 90 days
+personakit tidy --apply                                              # carry the plan out (reverse any with `personakit undo <id>`)
 personakit serve                                                     # MCP server over stdio for your assistants
 personakit forget <memory-id>                                        # delete a memory and its quotes for good
 ```
 
-`sweep`, `list` and `stats` also take `--json` for stable, sorted machine-readable output.
+`sweep`, `list`, `stats` and `tidy` also take `--json` for stable, sorted machine-readable output.
 
 The model name is always yours to choose. Nothing leaves your machine except the turns you wrote,
 sent to the model you named. See [docs/PRIVACY.md](docs/PRIVACY.md).
@@ -101,6 +103,9 @@ Your assistant gets two tools:
 4. **Review** is optional. Memories you never review are served marked *unconfirmed*; you
    can approve, restrict, hide or forget any of them at any time.
 5. **Serve** exposes the store to assistants over MCP, with the evidence attached.
+6. **Tidy** (on request) archives unconfirmed memories not seen again for 90 days. It shows a
+   plan first; nothing changes without `--apply`, nothing is deleted, and `personakit undo <id>`
+   reverses a step.
 
 A memory is always in one of four states:
 
@@ -111,7 +116,7 @@ A memory is always in one of four states:
 | `restricted` | Never |
 | `archived` | Never |
 
-## Limits in 0.1
+## Limits in 0.2
 
 Stated plainly, so you know what you are installing:
 
@@ -120,6 +125,9 @@ Stated plainly, so you know what you are installing:
   in other scripts are not matched yet; approved memories are still returned as standing context.
 - **A decision cannot be changed, only undone by forgetting.** `review` shows unconfirmed memories;
   there is no command yet to edit a memory's wording or move a decided memory to another state.
+- **Decay looks only at time.** An unconfirmed memory not extracted again for 90 days is archived
+  (reversible); that says nothing about whether it is still true. Approved and restricted
+  memories never decay.
 - **A memory an assistant already received stays in that conversation.** Restricting it applies to
   future reads.
 - **Paste and credential detection is by shape**, not by meaning. Look before you share a store.
@@ -131,6 +139,7 @@ Stated plainly, so you know what you are installing:
 | Claude Code sessions | Available in 0.1 |
 | Codex sessions | Available in 0.1 |
 | Any MCP client (read and propose) | Available in 0.1 |
+| Decay of stale unconfirmed memories (reversible) | Available in 0.2 |
 | ChatGPT, claude.ai and Gemini export import | Planned for 0.3 |
 
 ## Documentation

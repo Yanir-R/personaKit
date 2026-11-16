@@ -12,3 +12,4 @@ build/
 *.jsonl
 !tests/fixtures/**/*.jsonl
 .env
+.coverage
