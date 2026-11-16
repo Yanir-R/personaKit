@@ -19,3 +19,5 @@
 - **Tidy and undo:** `personakit tidy` reads your store and, only with `--apply`, archives stale
   unconfirmed memories. `personakit undo` brings one back. Nothing leaves your machine, nothing
   here calls a model, and assistants cannot archive or restore.
+- **Digest:** `personakit digest` prints memory ids and text (never evidence quotes) to your
+  terminal. Unlike `stats` it is not counts-only, so look before pasting it anywhere.

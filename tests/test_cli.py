@@ -150,6 +150,12 @@ class TidyCliTest(CliCase):
     def test_nothing_to_tidy_on_a_fresh_store(self):
         self.assertIn("Nothing to tidy.", self.run_cli("tidy")[1])
 
+    def test_digest_prints_text_or_json_and_rejects_bad_numbers(self):
+        self.seed()
+        self.assertIn("PersonaKit digest, last 7 days", self.run_cli("digest")[1])
+        self.assertEqual(json.loads(self.run_cli("digest", "--days", "36500", "--json")[1])["new"], 2)
+        self.assertEqual(self.run_cli("digest", "--days", "-5")[0], 2)
+
     def test_tidy_rejects_bad_numbers(self):
         self.assertEqual(self.run_cli("tidy", "--days", "0")[0], 2)
         self.assertEqual(self.run_cli("tidy", "--days", "99999999")[0], 2)

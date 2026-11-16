@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from personakit import decay, llm, mcp_server, review, stats, sweep, tidy
+from personakit import decay, digest, llm, mcp_server, review, stats, sweep, tidy
 from personakit.ingest import ADAPTERS
 from personakit.model import State
 from personakit.store import Store
@@ -53,6 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
     undo_cmd = sub.add_parser("undo", help="bring back one memory that tidy archived")
     undo_cmd.add_argument("memory_id")
 
+    digest_cmd = sub.add_parser("digest", help="what changed in the last days (prints memory text, locally)")
+    digest_cmd.add_argument("--days", type=int, default=7)
+    digest_cmd.add_argument("--json", action="store_true", help="print a JSON object")
+
     forget = sub.add_parser("forget", help="permanently delete a memory and its quotes")
     forget.add_argument("memory_id")
 
@@ -96,6 +100,15 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             print(f"Nothing to undo for {args.memory_id}: tidy did not archive it", file=sys.stderr)
             return 1
         print("Restored.")
+    elif args.command == "digest":
+        if not 1 <= args.days <= MAX_DAYS:
+            print(f"--days must be between 1 and {MAX_DAYS}", file=sys.stderr)
+            return 2
+        collected = digest.collect(store, store.now(), args.days)
+        if args.json:
+            _print_json(collected)
+        else:
+            print(digest.format_digest(collected))
     elif args.command == "forget":
         if not store.forget(args.memory_id):
             print(f"No memory with id {args.memory_id}", file=sys.stderr)
