@@ -21,3 +21,6 @@
   here calls a model, and assistants cannot archive or restore.
 - **Digest:** `personakit digest` prints memory ids and text (never evidence quotes) to your
   terminal. Unlike `stats` it is not counts-only, so look before pasting it anywhere.
+- **Plugins:** none are loaded unless you name them in `PERSONAKIT_PLUGINS`. A plugin replaces
+  how relevance is scored and cannot change what is served, but it is code you installed, running
+  as you. What it does with your data is up to that plugin; read it first.

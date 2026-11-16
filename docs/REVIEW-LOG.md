@@ -28,3 +28,4 @@ duplicated logic. Each entry records the result.
 | `personakit/decay.py`, `tidy.py`; `store.py`, `model.py`, `mcp_server.py`, `cli.py` (changes) | 2026-11-14 | none; migration 3 adds `last_seen_at`; an assistant proposal cannot revive or refresh a memory. Checked on a copy of a real store: upgrade, archive, undo and reads behave as documented | clean |
 | `tests/test_decay.py`, `test_store_decay.py`, `test_tidy.py`; `test_cli.py`, `test_mcp_server.py` (changes) | 2026-11-14 | invented sentences only | clean |
 | `personakit/digest.py`, `tests/test_digest.py`; `store.py`, `cli.py` (changes) | 2026-11-14 | none; local output only, text without quotes; invented test data | clean |
+| `personakit/plugins.py`, `docs/PLUGINS.md`, `tests/test_plugins.py`; `retrieve.py`, `mcp_server.py`, `cli.py` (changes) | 2026-11-14 | none; opt-in by name, scoring only, a policy test proves a plugin cannot widen what is served | clean |

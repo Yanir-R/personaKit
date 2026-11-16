@@ -10,7 +10,7 @@ Ranking is word overlap. It is a deliberately simple baseline, not a finished re
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
 from personakit.model import Memory, State
@@ -42,20 +42,30 @@ def words(text: str) -> set[str]:
     return {w for w in _WORD.findall(text.lower()) if w not in _STOP}
 
 
-def search(memories: Iterable[Memory], question: str, limit: int = 7) -> Result:
+def overlap(question: str, memories: Sequence[Memory]) -> list[float]:
+    """The built-in relevance: how many words of the question each memory shares."""
     asked = words(question)
+    return [float(len(asked & words(m.text + " " + m.category))) for m in memories]
+
+
+Relevance = Callable[[str, Sequence[Memory]], Sequence[float]]
+
+
+def search(memories: Iterable[Memory], question: str, limit: int = 7, relevance: Relevance = overlap) -> Result:
+    """Apply the read policy. `relevance` only orders memories (above 0 means relevant); what may
+    be served is decided here and cannot be widened by it."""
+    memories = list(memories)
     scored, standing, withheld = [], [], 0
-    for memory in memories:
-        overlap = len(asked & words(memory.text + " " + memory.category))
+    for memory, score in zip(memories, relevance(question, memories), strict=True):
         if memory.state == State.RESTRICTED:
-            withheld += overlap > 0
+            withheld += score > 0
         elif memory.state in SERVED:
-            if overlap:
-                scored.append((overlap, memory))
+            if score > 0:
+                scored.append((score, memory))
             elif memory.state == State.APPROVED:
                 standing.append(memory)
 
-    # Best overlap first; approved before unconfirmed; then oldest first for a stable order.
+    # Most relevant first; approved before unconfirmed; then oldest first for a stable order.
     scored.sort(key=lambda s: (-s[0], s[1].state != State.APPROVED, s[1].created_at or "", s[1].id))
     chosen = [memory for _, memory in scored][:limit]
     fill = min(limit, STANDING_CONTEXT) - len(chosen)

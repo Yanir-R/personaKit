@@ -49,6 +49,7 @@ flowchart TB
 | `decay` | Finds unconfirmed memories not seen again for a long time (90 days by default). Pure functions. | `model` |
 | `tidy` | Turns `decay` into a plan (read-only), applies it only on request, and reverses single steps. | `decay`, `store` |
 | `digest` | A summary of the last days: new and archived memories, what awaits review, read counts. Prints memory text, never quotes, to your terminal only. | `store`, `decay` |
+| `plugins` | One extension point, `relevance`, loaded only when the owner names a plugin in `PERSONAKIT_PLUGINS`. A plugin scores; policy stays in `retrieve` and `store`. See [PLUGINS.md](PLUGINS.md). | `retrieve` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 
