@@ -67,19 +67,40 @@ class FindTwinsTest(unittest.TestCase):
         self.a = mem("You prefer direct, practical feedback.", created="2026-01-01T00:00:00Z")
         self.b = mem("You prefer direct and practical feedback from reviewers.", created="2026-01-02T00:00:00Z")
 
-    def test_twins_from_the_same_session_are_grouped_with_the_oldest_kept(self):
+    def test_twins_are_grouped_with_the_oldest_kept(self):
         groups = find_twins([self.b, self.a])
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0].survivor.id, self.a.id)
         self.assertEqual([m.id for m in groups[0].duplicates], [self.b.id])
 
-    def test_other_sessions_are_never_merged(self):
-        other = mem(self.b.text, session="s2")
-        self.assertEqual(find_twins([self.a, other]), [])
+    def test_twins_are_found_across_sessions(self):
+        other = mem(self.b.text, session="s2", created="2026-01-02T00:00:00Z")
+        both = Memory(
+            text="You prefer direct practical feedback.",
+            category="communication",
+            created_at="2026-01-03T00:00:00Z",
+            evidence=(Evidence("s3", 0, "q"), Evidence("s4", 1, "q")),
+        )
+        groups = find_twins([both, other, self.a])
+        self.assertEqual([(g.survivor.id, [m.id for m in g.duplicates]) for g in groups], [(self.a.id, [other.id, both.id])])
 
-    def test_memory_resting_on_two_sessions_is_not_eligible(self):
-        both = Memory(text=self.b.text, category="communication", evidence=(Evidence("s1", 0, "q"), Evidence("s2", 1, "q")))
-        self.assertEqual(find_twins([self.a, both]), [])
+    def test_numbers_and_negation_must_agree_whatever_scores_the_pair(self):
+        def always(a, b):
+            return 1.0
+
+        for left, right in (
+            ("You run the suite on version 3 of the tool.", "You run the suite on version 4 of the tool."),
+            ("You want long reviews of your drafts.", "You never want long reviews of your drafts."),
+        ):
+            self.assertEqual(find_twins([mem(left), mem(right, created="2026-01-02T00:00:00Z")], similarity=always), [], left)
+
+    def test_a_memory_with_any_assistant_proposed_evidence_is_not_eligible(self):
+        mixed = Memory(
+            text=self.b.text,
+            category="communication",
+            evidence=(Evidence("s1", 0, "q"), Evidence(PROPOSED_BY_ASSISTANT, 0, "q")),
+        )
+        self.assertEqual(find_twins([self.a, mixed]), [])
 
     def test_assistant_proposals_are_never_merged(self):
         one = mem(self.a.text, session=PROPOSED_BY_ASSISTANT)

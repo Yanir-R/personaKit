@@ -46,10 +46,11 @@ flowchart TB
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
 | `review` | Terminal UI over the store: approve, restrict, hide, forget. Optional by design. | `store` |
 | `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
-| `twins` | Finds near-identical unconfirmed memories that rest on the same single session. Word-based, deliberately cautious (numbers, negation and the order of shared words must agree). Pure functions. | `model`, `retrieve` |
+| `twins` | Finds near-identical unconfirmed memories of one category and scope, across sessions. Word-based, deliberately cautious (the order of shared words must agree); numbers and negation must agree whatever scores a pair. Pure functions. | `model`, `retrieve` |
 | `decay` | Finds unconfirmed memories not seen again for a long time (90 days by default). Pure functions. | `model` |
 | `tidy` | Turns `twins` and `decay` into a plan (read-only), applies it only on request, and reverses single steps. | `twins`, `decay`, `store` |
 | `digest` | A summary of the last days: new, merged and archived memories, what awaits review, read counts. Prints memory text, never quotes, to your terminal only. | `store`, `decay` |
+| `plugins` | Two extension points, `relevance` and `similarity`, loaded only when the owner names a plugin in `PERSONAKIT_PLUGINS`. A plugin scores; policy stays in `retrieve`, `twins` and `store`. See [PLUGINS.md](PLUGINS.md). | `retrieve`, `twins` |
 | `stats` | Counts only (memories by state, sessions extracted, reads and how many returned something). Never content. | `store` |
 | `cli` | Argument parsing and wiring; no logic. | all |
 
@@ -76,7 +77,7 @@ model, only `ingest` reads session files.** A second implementation of any of th
 3. The system never deletes a memory, and never touches a memory you have decided on. Extracting
    the same statement again adds evidence to the existing memory and leaves your decision alone.
    Two things change unconfirmed memories, and only when you run `personakit tidy --apply` (the
-   default is a plan that changes nothing): folding same-session twins together, and archiving
+   default is a plan that changes nothing): folding near-identical twins together, and archiving
    memories not seen again for 90 days. Both are reversible with `personakit undo <id>`, and a
    memory that decay archived comes back by itself
    if the statement is extracted again from your own words. An assistant proposing the same text

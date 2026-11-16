@@ -1,4 +1,4 @@
-"""Tidy the store: fold same-session twins together and archive stale memories.
+"""Tidy the store: fold near-identical twins together and archive stale memories.
 
 Both steps are proposals first. `plan` only reads; nothing changes until the owner runs `apply`,
 and everything `apply` does can be reversed with `undo`. Nothing is ever deleted here, and no

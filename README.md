@@ -53,7 +53,7 @@ personakit sweep --cli claude --model <model-name> --max-calls 20   # read sessi
 personakit review                                                    # optional: approve, restrict, hide, forget
 personakit list                                                      # see what is stored
 personakit stats                                                     # counts only, never memory text
-personakit tidy                                                      # plan: fold same-session twins, archive stale memories
+personakit tidy                                                      # plan: fold near-identical twins, archive stale memories
 personakit tidy --apply                                              # carry the plan out (reverse any with `personakit undo <id>`)
 personakit digest                                                    # what changed in the last 7 days (local, prints memory text)
 personakit serve                                                     # MCP server over stdio for your assistants
@@ -104,7 +104,7 @@ Your assistant gets two tools:
 4. **Review** is optional. Memories you never review are served marked *unconfirmed*; you
    can approve, restrict, hide or forget any of them at any time.
 5. **Serve** exposes the store to assistants over MCP, with the evidence attached.
-6. **Tidy** (on request) folds near-identical memories from the same session into one, and
+6. **Tidy** (on request) folds near-identical memories into one, and
    archives unconfirmed memories not seen again for 90 days. It shows a plan first; nothing changes without `--apply`, nothing is deleted, and `personakit undo <id>`
    reverses a step.
 
@@ -127,7 +127,7 @@ Stated plainly, so you know what you are installing:
 - **A decision cannot be changed, only undone by forgetting.** `review` shows unconfirmed memories;
   there is no command yet to edit a memory's wording or move a decided memory to another state.
 - **Twin detection compares words, not meaning.** It folds memories phrased almost the same way,
-  from the same session, and misses paraphrases on purpose: a missed merge costs nothing, a wrong
+  from any session, and misses paraphrases on purpose: a missed merge costs nothing, a wrong
   one costs trust. Expect it to find little when the same fact is worded differently each time.
 - **Decay looks only at time.** An unconfirmed memory not extracted again for 90 days is archived
   (reversible); that says nothing about whether it is still true. Approved and restricted
@@ -143,7 +143,7 @@ Stated plainly, so you know what you are installing:
 | Claude Code sessions | Available in 0.1 |
 | Codex sessions | Available in 0.1 |
 | Any MCP client (read and propose) | Available in 0.1 |
-| Merge of near-identical same-session memories (reversible) | Available in 0.2 |
+| Merge of near-identical memories (reversible) | Available in 0.2 |
 | Decay of stale unconfirmed memories (reversible) | Available in 0.2 |
 | Digest of the last days | Available in 0.2 |
 | ChatGPT, claude.ai and Gemini export import | Planned for 0.3 |
@@ -153,6 +153,7 @@ Stated plainly, so you know what you are installing:
 - [personakit.me/docs](https://personakit.me/docs/): guides, concepts, and the MCP tools reference.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the design, module by module.
 - [docs/PRIVACY.md](docs/PRIVACY.md): exactly what is sent where.
+- [docs/PLUGINS.md](docs/PLUGINS.md): the extension point and what a plugin cannot do.
 - [docs/ROADMAP.md](docs/ROADMAP.md): what exists and what is planned.
 
 ## Contributing

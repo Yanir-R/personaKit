@@ -3,7 +3,7 @@
 | Release | Scope | Target |
 |---|---|---|
 | 0.1 | Claude Code + Codex ingest, extract, store, CLI review, MCP server, local stats | day 10 |
-| 0.2 | Merge same-session duplicates (reversible), decay to archive, weekly digest, a relevance extension point | in review |
+| 0.2 | Merge near-identical duplicates (reversible), decay to archive, weekly digest, extension points for relevance and similarity | in review |
 | 0.3 | Import from ChatGPT / claude.ai / Gemini exports | after launch |
 | 0.4 | Third-party name guard | after launch |
 
