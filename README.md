@@ -26,7 +26,7 @@ memories ("you prefer direct, practical feedback"), keeps the exact quote each o
 and serves only what you allow back to your assistants over MCP. Everything runs on your own
 machine. There is no PersonaKit server and no account.
 
-> **Status: pre-release (0.2 in progress).** This repository is being built in public.
+> **Status: 0.2, early release.** This repository is being built in public.
 > See [docs/ROADMAP.md](docs/ROADMAP.md) for what exists and what is planned.
 
 ## Why PersonaKit
