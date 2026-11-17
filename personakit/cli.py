@@ -61,6 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
     digest_cmd.add_argument("--days", type=int, default=7)
     digest_cmd.add_argument("--json", action="store_true", help="print a JSON object")
 
+    hints = sub.add_parser("hints", help="show or set the questions a memory answers and when it applies")
+    hints.add_argument("memory_id")
+    hints.add_argument("--answers", action="append", metavar="QUESTION", help="a question it answers (repeat for more)")
+    hints.add_argument("--applies-when", action="append", metavar="SITUATION", help="a situation it applies in (repeat for more)")
+    hints.add_argument("--clear", action="store_true", help="remove both kinds of hint (before adding any given here)")
+
     forget = sub.add_parser("forget", help="permanently delete a memory and its quotes")
     forget.add_argument("memory_id")
 
@@ -119,6 +125,8 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             _print_json(collected)
         else:
             print(digest.format_digest(collected))
+    elif args.command == "hints":
+        return _hints(args, store)
     elif args.command == "forget":
         if not store.forget(args.memory_id):
             print(f"No memory with id {args.memory_id}", file=sys.stderr)
@@ -132,6 +140,25 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
 def _print_json(data: object) -> None:
     """One stable, sorted JSON document per call, so output is byte-for-byte repeatable."""
     print(json.dumps(data, sort_keys=True, ensure_ascii=False))
+
+
+def _hints(args: argparse.Namespace, store: Store) -> int:
+    """Each kind of hint given replaces that kind; one not given is kept, unless --clear."""
+    empty = [] if args.clear else None
+    try:
+        if args.clear or args.answers or args.applies_when:
+            memory = store.set_hints(args.memory_id, args.answers or empty, args.applies_when or empty)
+        else:
+            memory = store.get(args.memory_id)
+            if memory is None:
+                raise KeyError(args.memory_id)
+    except KeyError:
+        print(f"No memory with id {args.memory_id}", file=sys.stderr)
+        return 1
+    print(memory.text)
+    for label, entries in (("answers", memory.answers), ("applies when", memory.applies_when)):
+        print(f"  {label}: " + ("; ".join(entries) if entries else "(none)"))
+    return 0
 
 
 def _tidy(args: argparse.Namespace, store: Store) -> int:

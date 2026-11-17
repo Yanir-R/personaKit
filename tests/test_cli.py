@@ -87,6 +87,25 @@ class CliTest(CliCase):
         self.assertEqual(json.loads(stats_out)["memories_unconfirmed"], 1)
         self.assertEqual(self.run_cli("stats", "--json")[1], stats_out)
 
+    def test_hints_can_be_shown_set_and_cleared(self):
+        self.db.parent.mkdir(parents=True)
+        with Store(self.db) as store:
+            memory = Memory(text="You prefer tabs.", category="tools", evidence=(Evidence("s", 0, "Tabs."),))
+            store.add(memory)
+        code, out, _ = self.run_cli("hints", memory.id)
+        self.assertEqual((code, out), (0, "You prefer tabs.\n  answers: (none)\n  applies when: (none)\n"))
+        code, out, _ = self.run_cli("hints", memory.id, "--answers", "Tabs or spaces?", "--answers", "Indent style?",
+                                    "--applies-when", "editing Go code")
+        self.assertIn("answers: Tabs or spaces?; Indent style?", out)
+        _, out, _ = self.run_cli("hints", memory.id, "--applies-when", "writing scripts")
+        self.assertIn("answers: Tabs or spaces?; Indent style?\n  applies when: writing scripts", out)
+        _, listing, _ = self.run_cli("list", "--json")
+        self.assertEqual(json.loads(listing)[0]["applies_when"], ["writing scripts"])
+        _, out, _ = self.run_cli("hints", memory.id, "--clear", "--answers", "Tabs?")
+        self.assertIn("answers: Tabs?\n  applies when: (none)", out)
+        self.assertEqual(self.run_cli("hints", "m_missing")[0], 1)
+        self.assertEqual(self.run_cli("hints", "m_missing", "--clear")[0], 1)
+
     def test_model_is_required(self):
         with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
             cli.main(["--db", str(self.db), "sweep"])

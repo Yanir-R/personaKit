@@ -9,10 +9,14 @@
   name, through your own signed-in `claude` or `codex` CLI, under that provider's terms. Assistant replies,
   tool output and file contents from sessions are not sent.
 - **What assistants see:** only what the MCP server returns. Restricted and archived
-  memories are never returned; unconfirmed ones are labelled. The evidence quotes it returns are shortened to a word boundary and email
-  addresses in them are masked; the store itself keeps the quote as you wrote it.
+  memories are never returned; unconfirmed ones are labelled. Only memories relevant to the
+  assistant's question, or to what it says it is about to do, are returned. Evidence quotes are
+  returned only when the assistant asks for them; they are shortened to a word boundary and email
+  addresses in them are masked; the store itself keeps the quote as you wrote it. The hints you add
+  with `personakit hints` help ranking and are never returned.
 - **Read log:** each read stores the time and two counts (returned, withheld) in your local
-  store. The question and the memory text are not recorded.
+  store. The question, the assistant's stated context and the memory text are not recorded. The
+  server remembers which memory ids it has already sent, in memory only, until it stops.
 - **Statistics:** `personakit stats` prints counts to your terminal. It never includes memory text.
   Sharing the output is your choice.
 - **Deletion:** `personakit forget` removes a memory and its evidence from the store.
