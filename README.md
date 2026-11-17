@@ -55,6 +55,8 @@ personakit list                                                      # see what 
 personakit stats                                                     # counts only, never memory text
 personakit tidy                                                      # plan: fold near-identical twins, archive stale memories
 personakit tidy --apply                                              # carry the plan out (reverse any with `personakit undo <id>`)
+personakit merges                                                    # list what was folded, with ids
+personakit undo <memory-id>                                          # reverse one fold or one stale archive
 personakit digest                                                    # what changed in the last 7 days (local, prints memory text)
 personakit serve                                                     # MCP server over stdio for your assistants
 personakit forget <memory-id>                                        # delete a memory and its quotes for good
@@ -94,7 +96,7 @@ Your assistant gets two tools:
 ## How it works
 
 <p align="center">
-  <img src="docs/assets/how-it-works.svg" width="760" alt="How PersonaKit works: session files are read on your machine, only the turns you wrote go to the model you chose, memories are stored in a local SQLite file, and the MCP server serves approved and unconfirmed memories to your assistants">
+  <img src="docs/assets/how-it-works.svg" width="760" alt="How PersonaKit works: session files are read on your machine, only the turns you wrote go to the model you chose, memories are stored in a local SQLite file, tidy folds twins and archives stale memories only when you ask, and the MCP server serves approved and unconfirmed memories to your assistants">
 </p>
 
 1. **Ingest** reads local session files. Only the turns you wrote leave the parsing step.
@@ -146,11 +148,12 @@ Stated plainly, so you know what you are installing:
 | Merge of near-identical memories (reversible) | Available in 0.2 |
 | Decay of stale unconfirmed memories (reversible) | Available in 0.2 |
 | Digest of the last days | Available in 0.2 |
+| Extension points for relevance and similarity ([docs/PLUGINS.md](docs/PLUGINS.md)) | Available in 0.2 |
 | ChatGPT, claude.ai and Gemini export import | Planned for 0.3 |
 
 ## Documentation
 
-- [personakit.me/docs](https://personakit.me/docs/): guides, concepts, and the MCP tools reference.
+- [personakit.me/docs](https://personakit.me/docs/): guides, concepts, tidy and undo, extensions, and the MCP tools reference.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the design, module by module.
 - [docs/PRIVACY.md](docs/PRIVACY.md): exactly what is sent where.
 - [docs/PLUGINS.md](docs/PLUGINS.md): the extension point and what a plugin cannot do.
