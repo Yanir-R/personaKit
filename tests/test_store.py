@@ -132,6 +132,50 @@ class StoreTest(unittest.TestCase):
             version = upgraded._conn.execute("PRAGMA user_version").fetchone()[0]
         self.assertEqual(version, len(MIGRATIONS))
 
+    def test_database_from_before_hints_opens_without_losing_anything(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        path = Path(tempfile.mkdtemp()) / "before-hints.db"
+        old = sqlite3.connect(path)
+        for number, script in enumerate(MIGRATIONS[:4]):
+            old.executescript(script)
+            old.execute(f"PRAGMA user_version = {number + 1}")
+        old.execute("INSERT INTO memories (id, text, category, scope, state, created_at, decided_at, decided_by, last_seen_at)"
+                    " VALUES ('m_old','You keep notes in plain text.','tools','global','approved','2026-01-01T00:00:00Z',"
+                    "'2026-01-02T00:00:00Z','owner','2026-01-03T00:00:00Z')")
+        old.execute("INSERT INTO evidence VALUES ('m_old','s',4,'Plain text forever.')")
+        old.execute("INSERT INTO reads VALUES ('2026-01-04T00:00:00Z', 1, 0)")
+        old.commit()
+        old.close()
+        with Store(path) as upgraded:
+            loaded = upgraded.get("m_old")
+            self.assertEqual((loaded.text, loaded.state, loaded.decided_by), ("You keep notes in plain text.", State.APPROVED, Decider.OWNER))
+            self.assertEqual((loaded.last_seen_at, loaded.evidence), ("2026-01-03T00:00:00Z", (Evidence("s", 4, "Plain text forever."),)))
+            self.assertEqual((loaded.answers, loaded.applies_when), ((), ()))
+            self.assertEqual(upgraded.read_stats()["reads"], 1)
+            upgraded.set_hints("m_old", answers=["Where do notes go?"])
+            self.assertEqual(upgraded.get("m_old").answers, ("Where do notes go?",))
+        with Store(path) as reopened:
+            self.assertEqual(reopened.get("m_old").answers, ("Where do notes go?",))
+            self.assertEqual(reopened._conn.execute("PRAGMA user_version").fetchone()[0], len(MIGRATIONS))
+
+    def test_hints_round_trip_and_leave_the_decision_alone(self):
+        m = Memory(text="You prefer tabs.", category="tools", evidence=(Evidence("s", 0, "Tabs."),),
+                   answers=("Tabs or spaces?",))
+        self.store.add(m)
+        self.store.set_state(m.id, State.APPROVED, Decider.OWNER)
+        self.assertEqual(self.store.get(m.id).answers, ("Tabs or spaces?",))
+        updated = self.store.set_hints(m.id, applies_when=["  editing   Go code ", "", "editing Go code"])
+        self.assertEqual((updated.answers, updated.applies_when), (("Tabs or spaces?",), ("editing Go code",)))
+        self.assertEqual((updated.state, updated.decided_at), (State.APPROVED, "2026-01-07T00:00:00Z"))
+        self.assertEqual(self.store.list()[0].applies_when, ("editing Go code",))
+        cleared = self.store.set_hints(m.id, answers=[])
+        self.assertEqual((cleared.answers, cleared.applies_when), ((), ("editing Go code",)))
+        self.assertEqual(updated.as_dict()["applies_when"], ["editing Go code"])
+        with self.assertRaises(KeyError):
+            self.store.set_hints("m_missing", answers=["x"])
+
     def test_database_records_its_schema_version(self):
         version = self.store._conn.execute("PRAGMA user_version").fetchone()[0]
         self.assertEqual(version, len(MIGRATIONS))

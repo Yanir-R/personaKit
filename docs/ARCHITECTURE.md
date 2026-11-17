@@ -42,10 +42,10 @@ flowchart TB
 | `llm` | One interface, `complete(prompt) -> str`, implemented by two CLI-backed clients (`claude`, `codex`). The per-run call budget lives here. | nothing |
 | `extract` | Builds the prompt from owner turns, validates the reply into `Memory` + `Evidence`, and counts what it rejects and why. | `model`, `llm` |
 | `sweep` | Runs ingest, extract and store over new sessions. Skips unchanged files, stops only on budget or model error, never because unreviewed memories are piling up. | `ingest`, `extract`, `llm`, `store` |
-| `retrieve` | The one read policy: approved and unconfirmed memories are served, restricted and archived never are. It also shapes the evidence quotes an assistant receives (email addresses masked, cut at a word boundary). Word-overlap ranking, a baseline to be measured. | `model` |
+| `retrieve` | The one read policy: approved and unconfirmed memories are served, restricted and archived never are, and only relevant ones (nothing relevant, nothing served). A read may name a scope (that scope and `global` only) and a context (scored like a second question). It also shapes the evidence quotes an assistant receives (email addresses masked, cut at a word boundary). Word-overlap ranking, a baseline to be measured. | `model` |
 | `store` | The only module that touches SQLite. Schema, migrations, queries, state changes. | `model` |
 | `review` | Terminal UI over the store: approve, restrict, hide, forget. Optional by design. | `store` |
-| `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
+| `mcp_server` | Two tools for assistants: `personakit_read` and `personakit_propose`. Holds no read-policy constants of its own. Shapes the packet: evidence only on request, and a memory already sent by this server process comes back as its id only (kept in memory, never stored). Assistants cannot approve, restrict, hide or forget; only the owner can, in `review`. | `store`, `retrieve`, `extract` |
 | `twins` | Finds near-identical unconfirmed memories of one category and scope, across sessions. Word-based, deliberately cautious (the order of shared words must agree); numbers and negation must agree whatever scores a pair. Pure functions. | `model`, `retrieve` |
 | `decay` | Finds unconfirmed memories not seen again for a long time (90 days by default). Pure functions. | `model` |
 | `tidy` | Turns `twins` and `decay` into a plan (read-only), applies it only on request, and reverses single steps. | `twins`, `decay`, `store` |
@@ -60,8 +60,10 @@ model, only `ingest` reads session files.** A second implementation of any of th
 ## Data model
 
 - **Turn**: `(source, session_id, index, timestamp, text)`. Only owner-authored turns exist here.
-- **Memory**: `id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by`.
-  `last_seen_at` moves forward each time the same statement is extracted again.
+- **Memory**: `id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by,
+  answers, applies_when`. `last_seen_at` moves forward each time the same statement is extracted
+  again. `answers` (questions it answers) and `applies_when` (situations it applies in) are written
+  by the owner with `personakit hints`; they count towards relevance and are never served.
 - **Merge**: a folded memory keeps its own row and evidence and points at the memory it was folded
   into (`merged_into`, `merged_at`). It is not listed or served on its own; the surviving memory
   shows the evidence of both. `undo` clears the pointer, so it is exact, and remembers the pair so

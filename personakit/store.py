@@ -6,6 +6,7 @@ the types in personakit.model.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -65,6 +66,12 @@ MIGRATIONS = [
         second_id  TEXT NOT NULL,
         PRIMARY KEY (first_id, second_id)
     );
+    """,
+    # The owner's own hints: questions a memory answers and situations it applies in, each a JSON
+    # list of strings. Existing memories start with none.
+    """
+    ALTER TABLE memories ADD COLUMN answers TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE memories ADD COLUMN applies_when TEXT NOT NULL DEFAULT '[]';
     """,
 ]
 
@@ -135,8 +142,9 @@ class Store:
             now = self._now()
             created = self._conn.execute(
                 "INSERT OR IGNORE INTO memories"
-                " (id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " (id, text, category, scope, state, created_at, last_seen_at, decided_at, decided_by,"
+                " answers, applies_when)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     memory.id,
                     memory.text,
@@ -147,6 +155,8 @@ class Store:
                     memory.last_seen_at or memory.created_at or now,
                     memory.decided_at,
                     memory.decided_by.value if memory.decided_by else None,
+                    json.dumps(list(memory.answers)),
+                    json.dumps(list(memory.applies_when)),
                 ),
             ).rowcount == 1
             self._conn.executemany(
@@ -234,6 +244,23 @@ class Store:
             ).rowcount
         if changed == 0:
             raise KeyError(memory_id)
+
+    def set_hints(
+        self, memory_id: str, answers: Iterable[str] | None = None, applies_when: Iterable[str] | None = None
+    ) -> Memory:
+        """Replace the owner's hints on a memory; a field left as None is kept. Blank entries are
+        dropped. Its state and decision are untouched. Raises KeyError if unknown or folded."""
+        current = self.get(memory_id)
+        if current is None:
+            raise KeyError(memory_id)
+        new_answers = current.answers if answers is None else _clean(answers)
+        new_applies = current.applies_when if applies_when is None else _clean(applies_when)
+        with self._conn:
+            self._conn.execute(
+                "UPDATE memories SET answers = ?, applies_when = ? WHERE id = ?",
+                (json.dumps(list(new_answers)), json.dumps(list(new_applies)), memory_id),
+            )
+        return self.get(memory_id)
 
     def forget(self, memory_id: str) -> bool:
         """Delete a memory and its evidence. Returns False if it did not exist.
@@ -361,7 +388,15 @@ class Store:
             decided_by=Decider(row["decided_by"]) if row["decided_by"] else None,
             last_seen_at=last_seen_at,
             evidence=evidence,
+            answers=tuple(json.loads(row["answers"])),
+            applies_when=tuple(json.loads(row["applies_when"])),
         )
+
+
+def _clean(entries: Iterable[str]) -> tuple[str, ...]:
+    """Hints as stored: whitespace collapsed, blanks and repeats dropped, order kept."""
+    cleaned = (" ".join(entry.split()) for entry in entries)
+    return tuple(dict.fromkeys(entry for entry in cleaned if entry))
 
 
 def _own_first(rows: Iterable[sqlite3.Row], memory_id: str) -> tuple[Evidence, ...]:

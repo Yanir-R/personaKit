@@ -31,12 +31,76 @@ class ReadTest(unittest.TestCase):
         self.addCleanup(self.store.close)
         self.approved, self.secret = seed(self.store)
 
-    def test_read_returns_served_memories_with_evidence_and_confirmation(self):
+    def test_read_returns_a_lean_packet_without_evidence_by_default(self):
         result = mcp_server.read_memories(self.store, "how should I give feedback")
         (item,) = result["memories"]
-        self.assertEqual(item["id"], self.approved.id)
-        self.assertTrue(item["confirmed"])
-        self.assertEqual(item["evidence"], ["Skip the pep talk."])
+        self.assertEqual(item, {"id": self.approved.id, "text": self.approved.text,
+                                "category": "communication", "confirmed": True})
+        self.assertEqual((result["withheld"], result["more"]), (0, 0))
+
+    def test_evidence_is_sent_only_when_asked_for(self):
+        result = mcp_server.read_memories(self.store, "feedback", include_evidence=True)
+        self.assertEqual(result["memories"][0]["evidence"], ["Skip the pep talk."])
+
+    def test_owner_hints_are_used_for_ranking_but_never_sent(self):
+        self.store.set_hints(self.approved.id, ["How do I review code?"], ["reviewing a pull request"])
+        result = mcp_server.read_memories(self.store, "pull request review", include_evidence=True)
+        self.assertEqual([m["id"] for m in result["memories"]], [self.approved.id])
+        self.assertNotIn("pull request", json.dumps(result))
+        self.assertNotIn("answers", result["memories"][0])
+
+    def test_nothing_relevant_gives_an_empty_answer(self):
+        result = mcp_server.read_memories(self.store, "zzzz unmatched topic")
+        self.assertEqual((result["memories"], result["more"]), ([], 0))
+
+    def test_more_and_context_and_scope_reach_the_read_policy(self):
+        for i in range(3):
+            self.store.add(Memory(text=f"You keep feedback notes, set {i}.", category="other",
+                                  evidence=(Evidence("s", 10 + i, "Notes."),)))
+        self.assertEqual(mcp_server.read_memories(self.store, "feedback", limit=2)["more"], 2)
+        by_context = mcp_server.read_memories(self.store, "zzzz", context="giving practical feedback")
+        self.assertEqual(len(by_context["memories"]), 4)
+        self.store.add(Memory(text="You lint before pushing.", category="tools", scope="project-b",
+                              evidence=(Evidence("s", 20, "Lint first."),)))
+        self.assertEqual(mcp_server.read_memories(self.store, "lint", scope="project-a")["memories"], [])
+        self.assertEqual(len(mcp_server.read_memories(self.store, "lint", scope="project-b")["memories"]), 1)
+
+
+class SeenTest(unittest.TestCase):
+    def setUp(self):
+        self.store = Store(":memory:")
+        self.addCleanup(self.store.close)
+        self.approved, _ = seed(self.store)
+        self.seen = set()
+
+    def read(self, **options):
+        return mcp_server.read_memories(self.store, "feedback", seen=self.seen, **options)
+
+    def test_a_memory_sent_in_full_comes_back_as_its_id_only(self):
+        first = self.read()
+        self.assertIn("text", first["memories"][0])
+        self.assertNotIn("seen_note", first)
+        self.assertEqual(self.seen, {self.approved.id})
+        again = self.read()
+        self.assertEqual(again["memories"], [{"id": self.approved.id, "seen": True}])
+        self.assertEqual(again["seen_note"], mcp_server.NOTE_SEEN)
+
+    def test_include_seen_or_evidence_sends_it_in_full_again(self):
+        self.read()
+        self.assertEqual(self.read(include_seen=True)["memories"][0]["text"], self.approved.text)
+        with_quotes = self.read(include_evidence=True)["memories"][0]
+        self.assertEqual(with_quotes["evidence"], ["Skip the pep talk."])
+
+    def test_unconfirmed_note_follows_only_full_entries(self):
+        extra = Memory(text="You prefer short feedback.", category="communication",
+                       evidence=(Evidence("s", 2, "Keep it short."),))
+        self.store.add(extra)
+        self.assertIn("note", self.read())
+        self.assertNotIn("note", self.read())
+
+    def test_without_a_set_every_read_is_in_full(self):
+        mcp_server.read_memories(self.store, "feedback")
+        self.assertIn("text", mcp_server.read_memories(self.store, "feedback")["memories"][0])
 
     def test_unconfirmed_note_only_when_an_unconfirmed_memory_is_served(self):
         confirmed_only = mcp_server.read_memories(self.store, "how should I give feedback")
@@ -108,6 +172,23 @@ class ServerTest(unittest.TestCase):
         content = content[0] if isinstance(content, tuple) else content  # (content, structured) in some 1.x
         result = json.loads(content[0].text)
         self.assertEqual(result["memories"][0]["text"], "You prefer direct, practical feedback.")
+        self.assertNotIn("evidence", result["memories"][0])
+
+    def test_one_server_remembers_what_it_sent_and_a_new_server_starts_fresh(self):
+        store = Store(":memory:")
+        self.addCleanup(store.close)
+        seed(store)
+
+        def read(server, **args):
+            content = asyncio.run(server.call_tool("personakit_read", {"question": "feedback", **args}))
+            content = content[0] if isinstance(content, tuple) else content
+            return json.loads(content[0].text)["memories"][0]
+
+        server = mcp_server.build_server(store)
+        self.assertIn("text", read(server, context="writing a review"))
+        self.assertEqual(read(server).get("seen"), True)
+        self.assertIn("evidence", read(server, include_evidence=True))
+        self.assertIn("text", read(mcp_server.build_server(store)))
 
 
 if __name__ == "__main__":

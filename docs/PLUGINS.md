@@ -4,7 +4,7 @@ PersonaKit has two extension points. Both replace a scoring function and nothing
 
 | Hook | Signature | Built-in | Used by |
 |---|---|---|---|
-| `relevance` | `(question: str, memories: Sequence[Memory]) -> Sequence[float]` | word overlap | `personakit serve` (which memories answer a question, and in what order) |
+| `relevance` | `(question: str, memories: Sequence[Memory]) -> Sequence[float]` | word overlap (text, category and the owner's hints) | `personakit serve` (which memories answer a question, and in what order; when the assistant states a context it is called a second time with that text, and each memory keeps its higher score) |
 | `similarity` | `(a: str, b: str) -> float` between 0 and 1 | shared words, with number, negation and order guards | `personakit tidy` (which memories are twins) |
 
 ## What a plugin cannot do
