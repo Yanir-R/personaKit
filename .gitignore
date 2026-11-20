@@ -13,3 +13,7 @@ build/
 !tests/fixtures/**/*.jsonl
 .env
 .coverage
+.env.*
+*.pem
+*.key
+.pypirc

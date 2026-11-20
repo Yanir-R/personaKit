@@ -2,7 +2,8 @@
 
 Assistants can never approve, restrict, hide or forget. Only the owner does that, in `review`.
 The functions below hold the logic and need no MCP package; `build_server` wraps them.
-Install the optional dependency with: pip install "personakit[mcp]"
+Install the optional dependency from a checkout of this repository with: pip install -e ".[mcp]"
+(not `pip install personakit`: that name on PyPI belongs to an unrelated project).
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ def build_server(store: Store, relevance: retrieve.Relevance = retrieve.overlap)
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise SystemExit('The MCP server needs the "mcp" package: pip install "personakit[mcp]"') from exc
+        raise SystemExit('The MCP server needs the "mcp" package: pip install "mcp>=1.2,<2"') from exc
 
     server = FastMCP("personakit")
 
