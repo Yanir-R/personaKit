@@ -26,6 +26,8 @@ def read_memories(
     include_evidence: bool = False,
     include_seen: bool = False,
     seen: set[str] | None = None,
+    select: retrieve.Select | None = None,
+    client: str = "",
 ) -> dict:
     """Memories relevant to a question, under the one read policy.
 
@@ -34,7 +36,7 @@ def read_memories(
     in full are added to it. With no set, every memory is sent in full.
     """
     limit = max(1, min(limit, 20))
-    result = retrieve.search(store.list(), question, limit, relevance, context, scope)
+    result = retrieve.search(store.list(), question, limit, relevance, context, scope, select, client)
     store.log_read(len(result.memories), result.withheld)
     items, full = [], []
     for m in result.memories:
@@ -74,7 +76,9 @@ def propose_memory(store: Store, text: str, quote: str, category: str = "other")
     return {"stored": True, "id": memory.id, "new": created, "state": State.UNCONFIRMED.value}
 
 
-def build_server(store: Store, relevance: retrieve.Relevance = retrieve.overlap):
+def build_server(
+    store: Store, relevance: retrieve.Relevance = retrieve.overlap, select: retrieve.Select | None = None
+):
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
@@ -104,7 +108,10 @@ def build_server(store: Store, relevance: retrieve.Relevance = retrieve.overlap)
         it, ask again with include_seen. Ask for evidence only when you need the owner's own words.
         `scope` (optional) limits the read to one project's memories plus general ones.
         """
-        return read_memories(store, question, limit, relevance, context, scope, include_evidence, include_seen, sent)
+        return read_memories(
+            store, question, limit, relevance, context, scope, include_evidence, include_seen, sent,
+            select, _client_name(server),
+        )
 
     @server.tool()
     def personakit_propose(text: str, quote: str, category: str = "other") -> dict:
@@ -114,5 +121,15 @@ def build_server(store: Store, relevance: retrieve.Relevance = retrieve.overlap)
     return server
 
 
-def serve(store: Store, relevance: retrieve.Relevance = retrieve.overlap) -> None:
-    build_server(store, relevance).run()
+def _client_name(server) -> str:
+    """The name the assistant gave when it connected ("claude-code", for example), "" when unknown."""
+    try:
+        return str(server.get_context().session.client_params.clientInfo.name or "")
+    except (AttributeError, LookupError, ValueError):
+        return ""
+
+
+def serve(
+    store: Store, relevance: retrieve.Relevance = retrieve.overlap, select: retrieve.Select | None = None
+) -> None:
+    build_server(store, relevance, select).run()

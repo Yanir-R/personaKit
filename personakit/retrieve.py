@@ -52,6 +52,9 @@ def overlap(question: str, memories: Sequence[Memory]) -> list[float]:
 
 
 Relevance = Callable[[str, Sequence[Memory]], Sequence[float]]
+# (question, context, the relevant servable memories best first, the assistant's name) -> the ones
+# to serve, or None to leave the read as it is. It may only narrow: see `search`.
+Select = Callable[[str, str, Sequence[Memory], str], "Sequence[Memory] | None"]
 
 
 def search(
@@ -61,6 +64,8 @@ def search(
     relevance: Relevance = overlap,
     context: str = "",
     scope: str = "",
+    select: Select | None = None,
+    client: str = "",
 ) -> Result:
     """Apply the read policy. `relevance` only orders memories (above 0 means relevant); what may
     be served is decided here and cannot be widened by it.
@@ -68,6 +73,12 @@ def search(
     `context` is what the assistant is about to do. It is scored like a second question and a
     memory keeps the better of its two scores, so the hook itself never changes. With a `scope`,
     only memories of that scope or "global" ones are considered at all.
+
+    `select`, when given, sees only the memories that may be served and are relevant, best first,
+    once per read, with the question, the context and the assistant's name (`client`, "" when
+    unknown). It may only narrow them: whatever it returns that was not offered is ignored, the
+    order stays this one, and None leaves the read unchanged. Restricted and archived memories
+    never reach it.
     """
     memories = [m for m in memories if not scope or m.scope in ("global", scope)]
     scores = list(relevance(question, memories))
@@ -84,8 +95,14 @@ def search(
 
     # Most relevant first; approved before unconfirmed; then oldest first for a stable order.
     scored.sort(key=lambda s: (-s[0], s[1].state != State.APPROVED, s[1].created_at or "", s[1].id))
-    chosen = [memory for _, memory in scored][:limit]
-    return Result(chosen, withheld, len(scored) - len(chosen))
+    ranked = [memory for _, memory in scored]
+    if select is not None and ranked:
+        picked = select(question, context, tuple(ranked), client)
+        if picked is not None:
+            keep = {m.id for m in picked}
+            ranked = [m for m in ranked if m.id in keep]
+    chosen = ranked[:limit]
+    return Result(chosen, withheld, len(ranked) - len(chosen))
 
 
 def served_quote(quote: str) -> str:

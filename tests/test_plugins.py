@@ -28,7 +28,15 @@ def use_always_twins(hooks):
     hooks.similarity = lambda a, b: 1.0
 
 
-INSTALLED = [FakePoint("match-all", use_everything_matches), FakePoint("twin-all", use_always_twins)]
+def use_keep_first(hooks):
+    hooks.select = lambda question, context, memories, client: memories[:1]
+
+
+INSTALLED = [
+    FakePoint("match-all", use_everything_matches),
+    FakePoint("twin-all", use_always_twins),
+    FakePoint("keep-first", use_keep_first),
+]
 
 
 def mem(text, session="s1", turn=0, state=State.UNCONFIRMED):
@@ -49,6 +57,7 @@ class LoadTest(unittest.TestCase):
         hooks = self.load([])
         self.assertIs(hooks.relevance, retrieve.overlap)
         self.assertIs(hooks.similarity, twins.similarity)
+        self.assertIsNone(hooks.select)
 
     def test_installed_but_unnamed_plugins_stay_off(self):
         self.assertIs(self.load(["twin-all"]).relevance, retrieve.overlap)
@@ -64,6 +73,12 @@ class LoadTest(unittest.TestCase):
 
     def test_a_plugin_that_breaks_a_hook_is_refused(self):
         broken = [FakePoint("broken", lambda hooks: setattr(hooks, "relevance", None))]
+        with self.assertRaises(plugins.PluginError):
+            plugins.load(["broken"], discover=lambda: broken)
+
+    def test_a_select_hook_is_loaded_and_a_broken_one_refused(self):
+        self.assertTrue(callable(self.load(["keep-first"]).select))
+        broken = [FakePoint("broken", lambda hooks: setattr(hooks, "select", "not callable"))]
         with self.assertRaises(plugins.PluginError):
             plugins.load(["broken"], discover=lambda: broken)
 

@@ -89,6 +89,56 @@ class SearchTest(unittest.TestCase):
         self.assertEqual(search([mem("You prefer the quiet.")], "what should the").memories, [])
 
 
+class SelectTest(unittest.TestCase):
+    """A select hook sees only what may be served, once per read, and can only narrow it."""
+
+    def setUp(self):
+        self.a = mem("You use Python and Rust for data pipelines.")
+        self.b = mem("You use Python for data work.")
+        self.c = mem("You use Python at home.", state=State.APPROVED)
+        self.restricted = mem("You use Python for a secret project.", state=State.RESTRICTED)
+        self.archived = mem("You used Python for data long ago.", state=State.ARCHIVED)
+        self.calls = []
+
+    def search(self, picked, **kw):
+        def select(question, context, memories, client):
+            self.calls.append((question, context, list(memories), client))
+            return picked(memories) if callable(picked) else picked
+        pool = [self.a, self.b, self.c, self.restricted, self.archived]
+        return search(pool, "python data pipelines", select=select, **kw)
+
+    def test_select_sees_only_relevant_servable_memories_best_first_once(self):
+        self.search(None, context="writing a script", client="claude-code")
+        self.assertEqual(len(self.calls), 1)
+        question, context, offered, client = self.calls[0]
+        self.assertEqual((question, context, client), ("python data pipelines", "writing a script", "claude-code"))
+        self.assertEqual(offered[0], self.a)
+        self.assertNotIn(self.restricted, offered)
+        self.assertNotIn(self.archived, offered)
+
+    def test_none_leaves_the_read_unchanged(self):
+        self.assertEqual(self.search(None).memories, search([self.a, self.b, self.c], "python data pipelines").memories)
+
+    def test_select_narrows_and_the_order_stays_the_cores(self):
+        result = self.search(lambda offered: [offered[2], offered[0]])
+        offered = self.calls[0][2]
+        self.assertEqual(result.memories, [offered[0], offered[2]])
+
+    def test_select_cannot_widen(self):
+        result = self.search([self.b, self.restricted, self.archived, mem("You use Go.")])
+        self.assertEqual(result.memories, [self.b])
+        self.assertEqual(result.withheld, 1)
+
+    def test_an_empty_selection_serves_nothing_and_more_counts_after_it(self):
+        self.assertEqual(self.search([]).memories, [])
+        result = self.search(lambda offered: offered[:2], limit=1)
+        self.assertEqual((len(result.memories), result.more), (1, 1))
+
+    def test_no_relevant_memory_means_select_is_not_called(self):
+        search([self.a], "unrelated words entirely", select=lambda *a: self.calls.append(a))
+        self.assertEqual(self.calls, [])
+
+
 class ServedQuoteTest(unittest.TestCase):
     def test_served_quotes_mask_emails_and_end_at_a_word_boundary(self):
         self.assertEqual(retrieve.served_quote("write to me at someone@example.com please"),
