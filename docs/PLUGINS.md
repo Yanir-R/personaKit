@@ -1,18 +1,22 @@
 # Plugins
 
-PersonaKit has two extension points. Both replace a scoring function and nothing else.
+PersonaKit has three extension points. Two replace a scoring function; the third may narrow a
+read to fewer memories. None can do anything else.
 
 | Hook | Signature | Built-in | Used by |
 |---|---|---|---|
 | `relevance` | `(question: str, memories: Sequence[Memory]) -> Sequence[float]` | word overlap (text, category and the owner's hints) | `personakit serve` (which memories answer a question, and in what order; when the assistant states a context it is called a second time with that text, and each memory keeps its higher score) |
 | `similarity` | `(a: str, b: str) -> float` between 0 and 1 | shared words, with number, negation and order guards | `personakit tidy` (which memories are twins) |
+| `select` | `(question: str, context: str, memories: Sequence[Memory], client: str) -> Sequence[Memory] \| None` | none (off) | `personakit serve`, once per read, after the read policy: it sees only the relevant memories that may be served, best first, and the name the assistant connected with (`""` when unknown). It returns the ones to serve, or `None` to leave the read as it is |
 
 ## What a plugin cannot do
 
 Policy stays in the core, whatever a plugin returns:
 
 - Restricted and archived memories are never served. A relevance score only orders what the read
-  policy already allows.
+  policy already allows, and `select` never sees them.
+- `select` can only narrow. A memory it returns that it was not offered is ignored, the order of
+  what is served stays the core's, and the limit still applies.
 - Only unconfirmed memories with the same category and scope, none resting on an assistant's
   proposal, can be proposed as twins, and only when they mention the same numbers and agree on
   negation. Merging still needs `personakit tidy --apply` and is reversible.

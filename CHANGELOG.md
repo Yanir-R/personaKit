@@ -11,6 +11,9 @@
   the limit.
 - Owner-written `answers` and `applies_when` on a memory, set with `personakit hints`. They
   help ranking and are never sent to assistants. Existing stores upgrade in place.
+- A third extension point, `select`: once per read, after the read policy, a plugin may narrow
+  the relevant servable memories to fewer. It cannot add memories or change their order, and
+  never sees restricted or archived ones. It is told the name the assistant connected with.
 
 ## 0.2.0
 

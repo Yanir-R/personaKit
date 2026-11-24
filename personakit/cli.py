@@ -133,7 +133,8 @@ def _dispatch(args: argparse.Namespace, store: Store) -> int:
             return 1
         print("Forgotten.")
     elif args.command == "serve":
-        mcp_server.serve(store, plugins.load().relevance)
+        hooks = plugins.load()
+        mcp_server.serve(store, hooks.relevance, hooks.select)
     return 0
 
 

@@ -1,4 +1,4 @@
-"""Extension points: swap how relevance and similarity are scored, nothing else.
+"""Extension points: swap how relevance and similarity are scored, and narrow a read, nothing else.
 
 A plugin is a Python package you installed that registers an entry point in the
 `personakit.plugins` group. The entry point is a function that receives a `Hooks` object and
@@ -6,7 +6,8 @@ replaces the scoring functions it provides. Nothing is loaded unless you name it
 PERSONAKIT_PLUGINS environment variable (comma separated), so installing a package never
 changes how PersonaKit behaves by itself.
 
-A plugin only scores. Which memories may be served, which may be merged, and every state change
+A plugin only scores, or narrows a read to fewer of the memories the core already chose to serve
+(`select`). Which memories may be served, which may be merged, and every state change
 stay in `retrieve`, `twins` and `store`. A plugin is still code running as you, with access to
 your store file: enable only ones you trust.
 """
@@ -34,6 +35,7 @@ class Hooks:
 
     relevance: retrieve.Relevance = retrieve.overlap  # (question, memories) -> one score per memory
     similarity: twins.Similarity = twins.similarity  # (text, text) -> 0 to 1
+    select: retrieve.Select | None = None  # (question, context, servable memories, assistant) -> fewer, or None
 
 
 def enabled_names() -> list[str]:
@@ -54,6 +56,6 @@ def load(
         if name not in installed:
             raise PluginError(f"plugin {name!r} is named in {ENABLE_ENV} but is not installed")
         installed[name].load()(hooks)
-    if not callable(hooks.relevance) or not callable(hooks.similarity):
+    if not callable(hooks.relevance) or not callable(hooks.similarity) or not (hooks.select is None or callable(hooks.select)):
         raise PluginError("a plugin replaced a hook with something that cannot be called")
     return hooks

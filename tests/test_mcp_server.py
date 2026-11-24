@@ -190,6 +190,29 @@ class ServerTest(unittest.TestCase):
         self.assertIn("evidence", read(server, include_evidence=True))
         self.assertIn("text", read(mcp_server.build_server(store)))
 
+    def test_select_hears_the_name_the_assistant_connected_with(self):
+        from mcp import types
+        from mcp.shared.memory import create_connected_server_and_client_session
+
+        store = Store(":memory:")
+        self.addCleanup(store.close)
+        seed(store)
+        heard = []
+
+        def select(question, context, memories, client):
+            heard.append(client)
+            return None
+
+        server = mcp_server.build_server(store, select=select)
+
+        async def run():
+            info = types.Implementation(name="claude-code", version="1.0")
+            async with create_connected_server_and_client_session(server._mcp_server, client_info=info) as session:
+                await session.call_tool("personakit_read", {"question": "feedback"})
+
+        asyncio.run(run())
+        self.assertEqual(heard, ["claude-code"])
+
 
 if __name__ == "__main__":
     unittest.main()
