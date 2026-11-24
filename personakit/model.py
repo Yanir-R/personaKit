@@ -76,6 +76,10 @@ class Memory:
     decided_at: str | None = None
     decided_by: Decider | None = None
     last_seen_at: str | None = None  # last time the same statement was extracted again
+    # Written by the owner to help the right question find this memory. Used for ranking only;
+    # never sent to an assistant.
+    answers: tuple[str, ...] = ()  # questions this memory answers
+    applies_when: tuple[str, ...] = ()  # situations it applies in
 
     def __post_init__(self) -> None:
         if not self.text.strip():
@@ -95,6 +99,8 @@ class Memory:
             "text": self.text,
             "quotes": len(self.evidence),
             "created_at": self.created_at,
+            "answers": list(self.answers),
+            "applies_when": list(self.applies_when),
         }
 
 

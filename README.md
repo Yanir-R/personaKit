@@ -58,6 +58,7 @@ personakit tidy --apply                                              # carry the
 personakit merges                                                    # list what was folded, with ids
 personakit undo <memory-id>                                          # reverse one fold or one stale archive
 personakit digest                                                    # what changed in the last 7 days (local, prints memory text)
+personakit hints <memory-id> --answers "<question>"                  # help the right question find a memory (never sent to assistants)
 personakit serve                                                     # MCP server over stdio for your assistants
 personakit forget <memory-id>                                        # delete a memory and its quotes for good
 ```
@@ -90,7 +91,7 @@ Your assistant gets two tools:
 
 | Tool | What it does |
 |---|---|
-| `personakit_read` | Returns the memories relevant to a question, each with its evidence quotes and whether you have confirmed it. |
+| `personakit_read` | Returns only the memories relevant to a question (and, if the assistant says, to what it is about to do), each with whether you have confirmed it. Nothing relevant means an empty answer. Evidence quotes are sent only when the assistant asks for them, and a memory already sent in the same session comes back as its id only. |
 | `personakit_propose` | Lets the assistant suggest a new memory. It is stored as *unconfirmed* until you review it. |
 
 ## How it works
@@ -105,7 +106,8 @@ Your assistant gets two tools:
 3. **Store** keeps each memory with its source quote, a state, and a scope.
 4. **Review** is optional. Memories you never review are served marked *unconfirmed*; you
    can approve, restrict, hide or forget any of them at any time.
-5. **Serve** exposes the store to assistants over MCP, with the evidence attached.
+5. **Serve** exposes the store to assistants over MCP: a small packet of relevant memories, with
+   evidence on request.
 6. **Tidy** (on request) folds near-identical memories into one, and
    archives unconfirmed memories not seen again for 90 days. It shows a plan first; nothing changes without `--apply`, nothing is deleted, and `personakit undo <id>`
    reverses a step.
@@ -125,7 +127,8 @@ Stated plainly, so you know what you are installing:
 
 - **Extraction is a model's guess.** Review is how you correct it.
 - **Ranking is word overlap**, on whole words in Latin letters and digits. Questions and memories
-  in other scripts are not matched yet; approved memories are still returned as standing context.
+  in other scripts are not matched yet, so such a question gets an empty answer. `personakit hints`
+  lets you add the questions and situations a memory is for, which counts towards matching.
 - **A decision cannot be changed, only undone by forgetting.** `review` shows unconfirmed memories;
   there is no command yet to edit a memory's wording or move a decided memory to another state.
 - **Twin detection compares words, not meaning.** It folds memories phrased almost the same way,

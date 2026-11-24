@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- `personakit_read` returns only relevant memories. When nothing is relevant the answer is
+  empty: approved memories are no longer added as standing context.
+- Evidence quotes are sent only with `include_evidence`. A memory already sent by the same
+  server process comes back as its id with `seen: true`, unless `include_seen`.
+- Reads take `context` (what the assistant is about to do, ranked like a second question) and
+  `scope` (that scope plus global). `more` in the answer counts relevant memories left out by
+  the limit.
+- Owner-written `answers` and `applies_when` on a memory, set with `personakit hints`. They
+  help ranking and are never sent to assistants. Existing stores upgrade in place.
+
 ## 0.2.0
 
 - `personakit tidy`: a plan that folds near-identical unconfirmed memories into the oldest one

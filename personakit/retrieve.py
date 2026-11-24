@@ -4,7 +4,8 @@ This is the one read policy. The MCP server uses it, and so does anything else t
 to an assistant. Approved and unconfirmed memories are served (unconfirmed ones are labelled as
 such); restricted and archived memories are never served.
 
-Ranking is word overlap. It is a deliberately simple baseline, not a finished retriever.
+Only relevant memories are served: when nothing matches, the answer is empty. Ranking is word
+overlap. It is a deliberately simple baseline, not a finished retriever.
 """
 
 from __future__ import annotations
@@ -16,10 +17,6 @@ from dataclasses import dataclass
 from personakit.model import Memory, State
 
 SERVED = (State.APPROVED, State.UNCONFIRMED)
-
-# When fewer than this many memories match the question, approved ones fill the rest, so an
-# assistant always gets the owner's confirmed standing preferences.
-STANDING_CONTEXT = 3
 
 # Evidence quotes are shortened and email-masked before an assistant sees them.
 SERVED_QUOTE_CHARS = 240
@@ -36,42 +33,59 @@ STOP_WORDS = frozenset(
 class Result:
     memories: list[Memory]
     withheld: int  # matching memories the owner restricted, counted but never shown
+    more: int = 0  # further relevant, servable memories left out by the limit
 
 
 def words(text: str) -> set[str]:
     return {w for w in _WORD.findall(text.lower()) if w not in STOP_WORDS}
 
 
+def about(memory: Memory) -> str:
+    """Everything a memory is about: its text, category and the owner's own hints."""
+    return " ".join((memory.text, memory.category, *memory.answers, *memory.applies_when))
+
+
 def overlap(question: str, memories: Sequence[Memory]) -> list[float]:
     """The built-in relevance: how many words of the question each memory shares."""
     asked = words(question)
-    return [float(len(asked & words(m.text + " " + m.category))) for m in memories]
+    return [float(len(asked & words(about(m)))) for m in memories]
 
 
 Relevance = Callable[[str, Sequence[Memory]], Sequence[float]]
 
 
-def search(memories: Iterable[Memory], question: str, limit: int = 7, relevance: Relevance = overlap) -> Result:
+def search(
+    memories: Iterable[Memory],
+    question: str,
+    limit: int = 7,
+    relevance: Relevance = overlap,
+    context: str = "",
+    scope: str = "",
+) -> Result:
     """Apply the read policy. `relevance` only orders memories (above 0 means relevant); what may
-    be served is decided here and cannot be widened by it."""
-    memories = list(memories)
-    scored, standing, withheld = [], [], 0
-    for memory, score in zip(memories, relevance(question, memories), strict=True):
+    be served is decided here and cannot be widened by it.
+
+    `context` is what the assistant is about to do. It is scored like a second question and a
+    memory keeps the better of its two scores, so the hook itself never changes. With a `scope`,
+    only memories of that scope or "global" ones are considered at all.
+    """
+    memories = [m for m in memories if not scope or m.scope in ("global", scope)]
+    scores = list(relevance(question, memories))
+    if context.strip():
+        scores = [max(a, b) for a, b in zip(scores, relevance(context, memories), strict=True)]
+    scored, withheld = [], 0
+    for memory, score in zip(memories, scores, strict=True):
+        if score <= 0:
+            continue
         if memory.state == State.RESTRICTED:
-            withheld += score > 0
+            withheld += 1
         elif memory.state in SERVED:
-            if score > 0:
-                scored.append((score, memory))
-            elif memory.state == State.APPROVED:
-                standing.append(memory)
+            scored.append((score, memory))
 
     # Most relevant first; approved before unconfirmed; then oldest first for a stable order.
     scored.sort(key=lambda s: (-s[0], s[1].state != State.APPROVED, s[1].created_at or "", s[1].id))
     chosen = [memory for _, memory in scored][:limit]
-    fill = min(limit, STANDING_CONTEXT) - len(chosen)
-    if fill > 0:
-        chosen.extend(sorted(standing, key=lambda m: (m.created_at or "", m.id))[:fill])
-    return Result(chosen, withheld)
+    return Result(chosen, withheld, len(scored) - len(chosen))
 
 
 def served_quote(quote: str) -> str:
